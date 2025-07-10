@@ -1,20 +1,24 @@
-import 'package:flutter/material.dart';
 
+import 'package:diem_danh_sinh_vien/views/home/student_info_view.dart';
+import 'package:flutter/material.dart';
 void main() {
-  runApp(const MainApp());
+  runApp(const MyApp());
 }
 
-class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Hello World!'),
-        ),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Điểm danh Sinh viên',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: Colors.white,
+        useMaterial3: true,
       ),
+      home: const StudentInfoView(), // Gọi trang đăng nhập ở đây
     );
   }
 }
