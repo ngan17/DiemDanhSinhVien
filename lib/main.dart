@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 
+import 'package:diem_danh_sinh_vien/views/home/student_info_view.dart';
+import 'package:flutter/material.dart';
 void main() {
   runApp(MyApp());
 }
