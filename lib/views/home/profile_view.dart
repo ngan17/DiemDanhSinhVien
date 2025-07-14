@@ -1,3 +1,7 @@
+import 'package:diem_danh_sinh_vien/views/auth/login_view.dart';
+import 'package:diem_danh_sinh_vien/views/auth/change_password_view.dart'; // Import ChangePasswordView
+import 'package:diem_danh_sinh_vien/views/home/student_info_view.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 
 class ProfileView extends StatelessWidget {
@@ -5,6 +9,8 @@ class ProfileView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = Supabase.instance.client.auth.currentUser;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
@@ -24,24 +30,26 @@ class ProfileView extends StatelessWidget {
               children: [
                 const CircleAvatar(
                   radius: 32,
-                  backgroundImage: AssetImage('assets/avatar.jpg'), // Đổi thành ảnh thật
+                  backgroundImage: AssetImage(
+                    'assets/avatar.jpg',
+                  ), // Đổi thành ảnh thật
                 ),
                 const SizedBox(width: 16),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
-                      "Võ Trường Nhật",
-                      style: TextStyle(
+                      user?.email ?? "Không có email",
+                      style: const TextStyle(
                         fontSize: 18,
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      "MSSV: 2001223265",
-                      style: TextStyle(
+                      "MSSV: ${user?.id ?? "Không có MSSV"}",
+                      style: const TextStyle(
                         fontSize: 14,
                         color: Colors.white70,
                       ),
@@ -61,22 +69,56 @@ class ProfileView extends StatelessWidget {
               children: [
                 const SizedBox(height: 8),
 
-                _buildTile(Icons.badge, "Thông tin sinh viên"),
-                _buildTile(Icons.lock_outline, "Đổi mật khẩu"),
-                _buildTile(Icons.description_outlined, "Điều khoản và chính sách sử dụng"),
+                _buildTile(
+                  Icons.badge,
+                  "Thông tin sinh viên",
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const StudentInfoView(),
+                      ),
+                    );
+                  },
+                ),
+
+                _buildTile(
+                  Icons.lock_outline,
+                  "Đổi mật khẩu",
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ChangePasswordView(),
+                      ),
+                    );
+                  },
+                ),
+
+                _buildTile(
+                  Icons.description_outlined,
+                  "Điều khoản và chính sách sử dụng",
+                ),
                 _buildTile(Icons.feedback_outlined, "Góp ý ứng dụng"),
                 _buildTileWithSwitch("Thông báo"),
-                _buildTile(Icons.logout, "Đăng xuất", iconColor: Colors.red),
+                _buildTile(
+                  Icons.logout,
+                  "Đăng xuất",
+                  iconColor: Colors.red,
+                  onTap: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginView()),
+                    );
+                  },
+                ),
               ],
             ),
           ),
 
           const SizedBox(height: 8),
 
-          const Text(
-            "Phiên bản 1.4.8",
-            style: TextStyle(color: Colors.grey),
-          ),
+          const Text("Phiên bản 1.4.8", style: TextStyle(color: Colors.grey)),
 
           const SizedBox(height: 16),
         ],
@@ -84,16 +126,20 @@ class ProfileView extends StatelessWidget {
     );
   }
 
-  Widget _buildTile(IconData icon, String title, {Color? iconColor}) {
+  // Đã sửa hàm này để nhận onTap và truyền được từ ngoài
+  Widget _buildTile(
+    IconData icon,
+    String title, {
+    Color? iconColor,
+    VoidCallback? onTap,
+  }) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ListTile(
         leading: Icon(icon, color: iconColor ?? Colors.blue),
         title: Text(title),
         trailing: const Icon(Icons.chevron_right),
-        onTap: () {
-          // TODO: Navigate
-        },
+        onTap: onTap,
       ),
     );
   }
