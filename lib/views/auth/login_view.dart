@@ -1,8 +1,12 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../viewmodels/auth/login_viewmodel.dart'; // gọi ViewModel xử lý login
 import 'package:diem_danh_sinh_vien/routes/app_routes.dart';
+import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart' as prefs;
+import 'package:diem_danh_sinh_vien/services/auth_service.dart';
+
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
 
@@ -14,6 +18,7 @@ class _LoginViewState extends State<LoginView> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final LoginViewModel _viewModel = LoginViewModel(); // Khởi tạo ViewModel
+  final AuthService _authService = AuthService(); // Khởi tạo AuthService
 
   bool _isPasswordVisible = false;
   bool _isLoading = false;
@@ -31,17 +36,26 @@ class _LoginViewState extends State<LoginView> {
 
     setState(() => _isLoading = true);
 
-    final isSuccess = await _viewModel.login(username, password);
+    try {
+      final success = await _authService.login(
+        _usernameController.text.trim(),
+        _passwordController.text.trim(),
+      );
 
-    setState(() => _isLoading = false);
-
-    if (isSuccess) {
-      // ignore: use_build_context_synchronously
-      Navigator.pushReplacementNamed(context, AppRoutes.main);
-    } else {
+      if (success) {
+        // Chuyển đến màn hình chính
+        Navigator.pushReplacementNamed(context, AppRoutes.main);
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Đăng nhập thất bại')));
+      }
+    } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Sai mã hoặc mật khẩu")));
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
