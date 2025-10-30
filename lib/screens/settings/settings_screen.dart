@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
+import '../auth/login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,6 +15,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _pushNotifications = true;
   bool _darkMode = false;
   String _language = 'Tiếng Việt';
+
+  Map<String, dynamic>? userData;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = await ApiService.getUserData();
+    if (mounted) {
+      setState(() {
+        userData = user;
+        _isLoading = false;
+      });
+    }
+  }
+
+  String get _userInitials {
+    final name =
+        userData?['profile']?['studentName'] ??
+        userData?['profile']?['lecturerName'] ??
+        'User';
+    final parts = name.split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
+    }
+    return name[0].toUpperCase();
+  }
+
+  String get _userName {
+    return userData?['profile']?['studentName'] ??
+        userData?['profile']?['lecturerName'] ??
+        'Người dùng';
+  }
+
+  String get _userCode {
+    if (userData?['role'] == 'student') {
+      return 'MSSV: ${userData?['user']?['user_code'] ?? ''}';
+    } else {
+      return 'Mã GV: ${userData?['profile']?['id'] ?? ''}';
+    }
+  }
+
+  String get _userInfo {
+    if (userData?['role'] == 'student') {
+      return userData?['profile']?['class']?['specializationName'] ?? '';
+    } else {
+      return userData?['profile']?['position'] ?? '';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,9 +93,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 CircleAvatar(
                   radius: 35,
                   backgroundColor: const Color(0xFF1E90FF),
-                  child: const Text(
-                    'VN',
-                    style: TextStyle(
+                  child: Text(
+                    _userInitials,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -52,9 +107,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Võ Nhật Ngân',
-                        style: TextStyle(
+                      Text(
+                        _userName,
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
@@ -62,14 +117,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'MSSV: 2021600123',
+                        _userCode,
                         style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Công nghệ thông tin',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
+                      if (_userInfo.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          _userInfo,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -358,40 +418,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showEditProfileDialog() {
+    final nameController = TextEditingController(text: _userName);
+    final emailController = TextEditingController(
+      text: userData?['email'] ?? '',
+    );
+    final phoneController = TextEditingController(
+      text: userData?['profile']?['phone'] ?? '',
+    );
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Chỉnh sửa thông tin'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              decoration: const InputDecoration(
-                labelText: 'Họ và tên',
-                border: OutlineInputBorder(),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Họ và tên',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person),
+                ),
+                controller: nameController,
               ),
-              controller: TextEditingController(text: 'Võ Nhật Ngân'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 16),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.email),
+                ),
+                controller: emailController,
+                enabled: false, // Email không cho sửa
               ),
-              controller: TextEditingController(
-                text: 'vonhatngan@student.edu.vn',
+              const SizedBox(height: 16),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Số điện thoại',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.phone),
+                ),
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              decoration: const InputDecoration(
-                labelText: 'Số điện thoại',
-                border: OutlineInputBorder(),
-              ),
-              controller: TextEditingController(text: '0901234567'),
-            ),
-          ],
+              const SizedBox(height: 16),
+              if (userData?['role'] == 'student') ...[
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Địa chỉ',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.home),
+                  ),
+                  controller: TextEditingController(
+                    text: userData?['profile']?['address'] ?? '',
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -402,7 +488,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Đã cập nhật thông tin')),
+                const SnackBar(
+                  content: Text('Chức năng cập nhật thông tin đang phát triển'),
+                  duration: Duration(seconds: 2),
+                ),
               );
             },
             style: ElevatedButton.styleFrom(
@@ -612,12 +701,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text('Hủy'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Đã đăng xuất')));
-            },
+            onPressed: () => _handleLogout(),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text(
               'Đăng xuất',
@@ -627,5 +711,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleLogout() async {
+    // Close confirm dialog first
+    Navigator.pop(context);
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => WillPopScope(
+        onWillPop: () async => false,
+        child: const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Đang đăng xuất...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // Call logout API - this will remove token
+      await ApiService.logout();
+
+      // Small delay for better UX
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      if (!mounted) return;
+
+      // Close loading dialog
+      Navigator.of(context, rootNavigator: true).pop();
+
+      // Navigate to login screen and clear all previous routes
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+
+      // Show success message on login screen
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Đã đăng xuất thành công'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      });
+    } catch (e) {
+      // Even on error, token is already removed by ApiService.logout()
+      if (!mounted) return;
+
+      // Close loading dialog
+      Navigator.of(context, rootNavigator: true).pop();
+
+      // Still navigate to login (logout succeeded locally)
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+
+      // Show message
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Đã đăng xuất (không kết nối server)'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      });
+    }
   }
 }

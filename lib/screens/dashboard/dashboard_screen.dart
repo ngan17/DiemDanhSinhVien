@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import '../../models/activity.dart';
-import '../../models/training_score.dart';
-import '../../utils/mock_data.dart';
-import 'activity_registration_screen.dart';
-import 'training_score_screen.dart';
+import '../../models/event_model.dart';
+import '../../services/event_service.dart';
+import '../../services/api_service.dart';
 import '../settings/settings_screen.dart';
+import '../events/event_list_screen.dart';
+import '../events/my_events_screen.dart';
+import 'training_score_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -15,8 +15,11 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  List<Activity> upcomingActivities = [];
-  TrainingScore? latestScore;
+  List<EventModel> upcomingEvents = [];
+  List<EventRegistrationModel> myRegistrations = [];
+  Map<String, dynamic>? userData;
+  bool _isLoading = true;
+  int _notificationCount = 0;
 
   @override
   void initState() {
@@ -24,13 +27,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadData();
   }
 
-  void _loadData() {
+  Future<void> _loadData() async {
     setState(() {
-      upcomingActivities = MockData.getActivitiesByStatus(
-        'upcoming',
-      ).take(3).toList();
-      latestScore = MockData.getTrainingScores().first;
+      _isLoading = true;
     });
+
+    try {
+      // Load user data from SharedPreferences
+      final user = await ApiService.getUserData();
+
+      // Load upcoming events
+      final eventsResult = await EventService.getAllEvents(status: 'upcoming');
+
+      // Load my registrations for notification count
+      final regsResult = await EventService.getMyRegistrations();
+
+      if (mounted) {
+        setState(() {
+          userData = user;
+
+          if (eventsResult['success'] == true) {
+            final List<dynamic> eventsJson = eventsResult['data'] ?? [];
+            upcomingEvents = eventsJson
+                .map((json) => EventModel.fromJson(json))
+                .take(3)
+                .toList();
+          }
+
+          if (regsResult['success'] == true) {
+            final List<dynamic> regsJson = regsResult['data'] ?? [];
+            myRegistrations = regsJson
+                .map((json) => EventRegistrationModel.fromJson(json))
+                .toList();
+            // Count pending registrations as notifications
+            _notificationCount = myRegistrations
+                .where((r) => r.status == 'pending' || r.status == 'approved')
+                .length;
+          }
+
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -52,8 +96,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
+                children: [
+                  const Text(
                     'Xin chào,',
                     style: TextStyle(
                       fontSize: 14,
@@ -63,8 +107,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    'Võ Nhật Ngân',
-                    style: TextStyle(
+                    userData?['profile']?['studentName'] ??
+                        userData?['email']?.toString().split('@')[0] ??
+                        'Sinh viên',
+                    style: const TextStyle(
                       fontSize: 16,
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -95,9 +141,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: Colors.red,
                       shape: BoxShape.circle,
                     ),
-                    child: const Text(
-                      '3',
-                      style: TextStyle(
+                    child: Text(
+                      _notificationCount > 0 ? '$_notificationCount' : '0',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -175,7 +221,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 const Text(
-                                  'Điểm rèn luyện hiện tại',
+                                  'Sự kiện đã đăng ký',
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: Colors.grey,
@@ -185,9 +231,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 Row(
                                   children: [
                                     Text(
-                                      latestScore != null
-                                          ? '${latestScore!.totalScore.toStringAsFixed(0)}/100'
-                                          : '--/100',
+                                      '${myRegistrations.length}',
                                       style: const TextStyle(
                                         fontSize: 22,
                                         fontWeight: FontWeight.bold,
@@ -195,22 +239,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ),
                                     ),
                                     const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF4CAF50),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        latestScore?.classification ?? '--',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                    const Text(
+                                      'sự kiện',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey,
                                       ),
                                     ),
                                   ],
@@ -227,7 +260,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               const SizedBox(height: 16),
 
-              // Main feature cards
+              // Main feature cards - Row 1
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
@@ -236,16 +269,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: _buildFeatureCard(
                         context,
                         icon: Icons.event_note,
-                        title: 'Đăng ký\nhoạt động',
+                        title: 'Tất cả\nsự kiện',
                         color: const Color(0xFF2196F3),
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const ActivityRegistrationScreen(),
+                              builder: (context) => const EventListScreen(),
                             ),
-                          );
+                          ).then((value) => _loadData());
                         },
                       ),
                     ),
@@ -270,16 +302,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
 
+              const SizedBox(height: 12),
+
+              // Main feature cards - Row 2 (Events)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildFeatureCard(
+                        context,
+                        icon: Icons.event,
+                        title: 'Sự kiện\nsắp tới',
+                        color: const Color(0xFFFF9800),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const EventListScreen(),
+                            ),
+                          ).then((value) => _loadData());
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildFeatureCard(
+                        context,
+                        icon: Icons.history,
+                        title: 'Sự kiện\ncủa tôi',
+                        color: const Color(0xFF9C27B0),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const MyEventsScreen(),
+                            ),
+                          ).then((value) => _loadData());
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               const SizedBox(height: 24),
 
-              // Upcoming activities section
+              // Upcoming events section
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'Hoạt động sắp diễn ra',
+                      'Sự kiện sắp diễn ra',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -291,10 +367,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                const ActivityRegistrationScreen(),
+                            builder: (context) => const EventListScreen(),
                           ),
-                        );
+                        ).then((value) => _loadData());
                       },
                       child: const Text('Xem tất cả'),
                     ),
@@ -304,8 +379,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               const SizedBox(height: 8),
 
-              // Upcoming activities list
-              upcomingActivities.isEmpty
+              // Upcoming events list
+              upcomingEvents.isEmpty
                   ? Padding(
                       padding: const EdgeInsets.all(32),
                       child: Center(
@@ -318,7 +393,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Chưa có hoạt động nào',
+                              'Chưa có sự kiện nào',
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 16,
@@ -332,10 +407,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: upcomingActivities.length,
+                      itemCount: upcomingEvents.length,
                       itemBuilder: (context, index) {
-                        final activity = upcomingActivities[index];
-                        return _buildActivityCard(context, activity);
+                        final event = upcomingEvents[index];
+                        return _buildEventCard(context, event);
                       },
                     ),
 
@@ -398,9 +473,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildActivityCard(BuildContext context, Activity activity) {
-    final dateFormat = DateFormat('dd/MM/yyyy');
-    final timeFormat = DateFormat('HH:mm');
+  Widget _buildEventCard(BuildContext context, EventModel event) {
+    Color statusColor;
+    if (event.isUpcoming) {
+      statusColor = Colors.blue;
+    } else if (event.isOngoing) {
+      statusColor = Colors.green;
+    } else {
+      statusColor = Colors.grey;
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -410,10 +491,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => const ActivityRegistrationScreen(),
-            ),
-          );
+            MaterialPageRoute(builder: (context) => const EventListScreen()),
+          ).then((value) => _loadData());
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -423,96 +502,84 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               Row(
                 children: [
-                  Expanded(
-                    child: Text(
-                      activity.name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: 12,
+                      vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFF9800).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: statusColor, width: 1),
                     ),
                     child: Text(
-                      '+${activity.trainingScore.toStringAsFixed(0)} điểm',
-                      style: const TextStyle(
-                        color: Color(0xFFFF9800),
+                      event.status,
+                      style: TextStyle(
+                        color: statusColor,
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        event.eventTypeName,
+                        style: TextStyle(
+                          color: Colors.purple[700],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 8),
-                  Text(
-                    dateFormat.format(activity.startDate),
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                  ),
-                  const SizedBox(width: 16),
-                  Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 8),
-                  Text(
-                    timeFormat.format(activity.startDate),
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                  ),
-                ],
+              Text(
+                event.eventName,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+                  Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      activity.location,
+                      event.formattedDateRange,
                       style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: LinearProgressIndicator(
-                      value:
-                          activity.currentParticipants /
-                          activity.maxParticipants,
-                      backgroundColor: Colors.grey[200],
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        Color(0xFF1E90FF),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${activity.currentParticipants}/${activity.maxParticipants}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
+              if (event.description != null &&
+                  event.description!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  event.description!,
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ],
           ),
         ),
