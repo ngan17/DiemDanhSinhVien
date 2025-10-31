@@ -10,15 +10,10 @@ class TrainingScoreScreen extends StatefulWidget {
 }
 
 class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
-  List<SemesterScore> semesters = [];
-  String studentName = '';
-  int totalConductScore = 0;
-  int totalEventsAttended = 0;
+  Map<String, dynamic>? scoreData;
   bool _isLoading = false;
-
-  // Lọc theo học kỳ
   String? selectedSemester;
-  List<String> availableSemesters = [];
+  List<Map<String, dynamic>> semesterOptions = [];
 
   @override
   void initState() {
@@ -32,36 +27,57 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
     });
 
     try {
-      // Gọi API lấy điểm theo học kỳ
+      print(' Đang tải điểm rèn luyện...');
       final data = await ConductScoreService.getScoreBySemester();
 
+      print(' Dữ liệu nhận được: $data');
+
       if (data != null && mounted) {
+        final semestersList = data['semesters'] as List<SemesterScore>? ?? [];
+
+        print(' Số học kỳ: ${semestersList.length}');
+
+        // Build semester options from semesters list
         setState(() {
-          studentName = data['studentName'] ?? '';
-          totalConductScore = data['totalConductScore'] ?? 0;
-          totalEventsAttended = data['totalEventsAttended'] ?? 0;
-          semesters = data['semesters'] ?? [];
+          scoreData = data;
+          semesterOptions = semestersList.map((semester) {
+            return {
+              'id': semester.semesterId,
+              'name': semester.semesterName,
+              'score': semester.totalScore,
+              'eventCount': semester.eventCount,
+              'events': semester.events,
+            };
+          }).toList();
 
-          // Lấy danh sách học kỳ (tên đầy đủ: "HK1 2023-2024")
-          final semesterNames = semesters
-              .map((s) => s.semesterName)
-              .toSet()
-              .toList();
-
-          // Sắp xếp học kỳ giảm dần
-          semesterNames.sort((a, b) => b.compareTo(a));
-          availableSemesters = semesterNames;
-
-          if (availableSemesters.isNotEmpty && selectedSemester == null) {
-            selectedSemester = availableSemesters.first;
+          // Set default selection
+          if (semesterOptions.isNotEmpty && selectedSemester == null) {
+            selectedSemester = semesterOptions.first['name'];
           }
+
+          print(' Đã tải xong: ${semesterOptions.length} học kỳ');
         });
+      } else {
+        print(' Không nhận được dữ liệu từ API');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Không thể tải dữ liệu điểm rèn luyện'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print(' Lỗi khi tải dữ liệu: $e');
+      print('Stack trace: $stackTrace');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi khi tải dữ liệu: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -72,9 +88,52 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
     }
   }
 
-  List<SemesterScore> get filteredSemesters {
-    if (selectedSemester == null) return semesters;
-    return semesters.where((s) => s.semesterName == selectedSemester).toList();
+  Map<String, dynamic>? get selectedSemesterData {
+    if (selectedSemester == null || semesterOptions.isEmpty) return null;
+
+    try {
+      return semesterOptions.firstWhere((s) => s['name'] == selectedSemester);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Get classification based on total score
+  String _getClassification(int score) {
+    if (score >= 90) return 'Xuất sắc';
+    if (score >= 80) return 'Giỏi';
+    if (score >= 65) return 'Khá';
+    if (score >= 50) return 'Trung bình';
+    if (score >= 35) return 'Yếu';
+    return 'Kém';
+  }
+
+  // Group events by type and calculate scores
+  Map<String, Map<String, dynamic>> _getScoreBreakdown() {
+    final semData = selectedSemesterData;
+    if (semData == null || semData['events'] == null) {
+      return {};
+    }
+
+    final events = semData['events'] as List<EventScore>;
+    final breakdown = <String, Map<String, dynamic>>{};
+
+    // Group events by type
+    for (var event in events) {
+      final typeName = event.eventTypeName;
+      if (!breakdown.containsKey(typeName)) {
+        breakdown[typeName] = {
+          'score': 0,
+          'maxScore': 30, // Default
+          'status': 'Đã duyệt',
+          'roman': 'I',
+        };
+      }
+      breakdown[typeName]!['score'] =
+          (breakdown[typeName]!['score'] as int) + event.conductScore;
+    }
+
+    return breakdown;
   }
 
   @override
@@ -82,129 +141,71 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E90FF),
-        elevation: 0,
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        automaticallyImplyLeading: false,
         title: const Text(
           'Điểm rèn luyện',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Colors.black87,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        centerTitle: true,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : scoreData == null
+          ? _buildEmptyState()
           : RefreshIndicator(
               onRefresh: _loadData,
-              child: Column(
-                children: [
-                  // Semester selector
-                  if (availableSemesters.isNotEmpty)
-                    Container(
-                      color: const Color(0xFF1E90FF),
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: selectedSemester,
-                            isExpanded: true,
-                            icon: const Icon(
-                              Icons.arrow_drop_down,
-                              color: Color(0xFF1E90FF),
-                            ),
-                            items: availableSemesters.map((semester) {
-                              return DropdownMenuItem<String>(
-                                value: semester,
-                                child: Text(
-                                  semester,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (value) {
-                              if (value != null) {
-                                setState(() {
-                                  selectedSemester = value;
-                                });
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 16),
 
-                  // Summary card
-                  if (filteredSemesters.isNotEmpty)
+                    // Semester Dropdown
                     Container(
-                      margin: const EdgeInsets.all(16),
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF1E90FF), Color(0xFF64B5F6)],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.blue.withOpacity(0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
                       ),
-                      child: Column(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Row(
                         children: [
-                          const Text(
-                            'Tổng điểm trung bình',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _calculateAverageScore().toStringAsFixed(1),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 48,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '/100 điểm',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              _getOverallClassification(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                          Expanded(
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: selectedSemester,
+                                isExpanded: true,
+                                icon: const Icon(Icons.keyboard_arrow_down),
+                                items: semesterOptions.map((semester) {
+                                  return DropdownMenuItem<String>(
+                                    value: semester['name'],
+                                    child: Text(
+                                      semester['name'],
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() {
+                                      selectedSemester = value;
+                                    });
+                                  }
+                                },
                               ),
                             ),
                           ),
@@ -212,391 +213,337 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
                       ),
                     ),
 
-                  // Semester scores list
-                  Expanded(
-                    child: filteredSemesters.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                    const SizedBox(height: 16),
+
+                    // Total Score Card
+                    if (selectedSemesterData != null)
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE3F2FD),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Điểm tổng kết kỳ',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Icon(
-                                  Icons.assessment_outlined,
-                                  size: 80,
-                                  color: Colors.grey[400],
-                                ),
-                                const SizedBox(height: 16),
                                 Text(
-                                  'Chưa có điểm rèn luyện',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 16,
+                                  '${selectedSemesterData!['score']}',
+                                  style: const TextStyle(
+                                    fontSize: 48,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                    height: 1,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Padding(
+                                  padding: EdgeInsets.only(bottom: 8),
+                                  child: Text(
+                                    'Tốt',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+                                const Padding(
+                                  padding: EdgeInsets.only(bottom: 8),
+                                  child: Text(
+                                    'Tốt',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.black54,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: filteredSemesters.length,
-                            itemBuilder: (context, index) {
-                              final semester = filteredSemesters[index];
-                              return _buildScoreCard(semester);
-                            },
-                          ),
-                  ),
-                ],
+                          ],
+                        ),
+                      ),
+
+                    const SizedBox(height: 16),
+
+                    // Score Breakdown Table
+                    if (selectedSemesterData != null)
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            // Table Header
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(12),
+                                  topRight: Radius.circular(12),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Expanded(
+                                    flex: 3,
+                                    child: Text(
+                                      'Tiêu chí',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 60,
+                                    alignment: Alignment.center,
+                                    child: const Text(
+                                      'Điểm',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 90,
+                                    alignment: Alignment.center,
+                                    child: const Text(
+                                      'Minh chứng',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Table Rows with real data from API
+                            ..._buildScoreRows(),
+                          ],
+                        ),
+                      ),
+
+                    const SizedBox(height: 24),
+
+                    // Summary Footer
+                    if (selectedSemesterData != null)
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Tổng điểm rèn luện: ${selectedSemesterData!['score']}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF2196F3),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Xếp loại: ${_getClassification(selectedSemesterData!['score'])}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF2196F3),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
             ),
     );
   }
 
-  Widget _buildScoreCard(SemesterScore semester) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: () {
-          // Chuyển sang màn hình chi tiết với danh sách sự kiện
-          _showSemesterDetail(semester);
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  List<Widget> _buildScoreRows() {
+    final semData = selectedSemesterData;
+    if (semData == null || semData['events'] == null) {
+      return [_buildScoreRow('Chưa có dữ liệu', 0, 'Chưa có')];
+    }
+
+    final events = semData['events'] as List<EventScore>;
+    final rows = <Widget>[];
+
+    // Map event type to Roman numerals
+    final typeToRoman = {
+      'Học thuật': 'I',
+      'Tình nguyện': 'II',
+      'Văn hóa': 'II',
+      'Thể thao': 'III',
+      'Khác': 'IV',
+    };
+
+    // Build a row for each event
+    for (var event in events) {
+      final roman = typeToRoman[event.eventTypeName] ?? 'I';
+      final statusText = _getStatusText(event.status);
+
+      rows.add(
+        _buildScoreRow(
+          '$roman. ${event.eventName}',
+          event.conductScore,
+          statusText,
+        ),
+      );
+    }
+
+    return rows.isEmpty
+        ? [_buildScoreRow('Chưa có sự kiện', 0, 'Chưa có')]
+        : rows;
+  }
+
+  // Helper method to convert status to Vietnamese
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'attended':
+        return 'Đã duyệt';
+      case 'approved':
+        return 'Đã duyệt';
+      case 'pending':
+        return 'Chờ duyệt';
+      case 'rejected':
+        return 'Từ chối';
+      default:
+        return status;
+    }
+  }
+
+  Widget _buildScoreRow(String title, int score, String status) {
+    return Column(
+      children: [
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          semester.semesterName,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${semester.eventCount} sự kiện',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        semester.totalScore.toString(),
-                        style: TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
-                          color: _getScoreColor(semester.totalScore.toDouble()),
-                        ),
-                      ),
-                      Text(
-                        'điểm',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: _getClassificationColor(
-                    _getClassification(semester.totalScore),
-                  ).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
+              Expanded(
+                flex: 3,
                 child: Text(
-                  _getClassification(semester.totalScore),
-                  style: TextStyle(
-                    color: _getClassificationColor(
-                      _getClassification(semester.totalScore),
-                    ),
-                    fontWeight: FontWeight.bold,
+                  title,
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                ),
+              ),
+              Container(
+                width: 60,
+                alignment: Alignment.center,
+                child: Text(
+                  '$score',
+                  style: const TextStyle(
                     fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 12),
-              // Hiển thị 3 sự kiện đầu tiên
-              ...semester.events.take(3).map((event) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    children: [
-                      Icon(Icons.event, size: 16, color: Colors.grey[600]),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          event.eventName,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[700],
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '+${event.conductScore}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: _getScoreColor(event.conductScore.toDouble()),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-              if (semester.events.length > 3)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    'và ${semester.events.length - 3} sự kiện khác...',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[500],
-                      fontStyle: FontStyle.italic,
-                    ),
+              Container(
+                width: 90,
+                alignment: Alignment.center,
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: status == 'Đã duyệt'
+                        ? Colors.grey[600]
+                        : Colors.grey[400],
                   ),
                 ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          height: MediaQuery.of(context).size.height - 200,
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.analytics_outlined, size: 80, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text(
+                'Chưa có dữ liệu điểm rèn luyện',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[600],
+                ),
+              ),
               const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    'Xem chi tiết',
-                    style: TextStyle(
-                      color: const Color(0xFF1E90FF),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
+              Text(
+                'Bạn chưa tham gia sự kiện nào\nhoặc chưa được cập nhật điểm',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _loadData,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Làm mới'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2196F3),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
                   ),
-                  const SizedBox(width: 4),
-                  const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 14,
-                    color: Color(0xFF1E90FF),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ],
+                ),
               ),
             ],
           ),
         ),
       ),
     );
-  }
-
-  void _showSemesterDetail(SemesterScore semester) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.7,
-          maxChildSize: 0.9,
-          minChildSize: 0.5,
-          expand: false,
-          builder: (context, scrollController) {
-            return Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1E90FF),
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(20),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 4,
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      Text(
-                        semester.semesterName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Tổng điểm: ${semester.totalScore}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    controller: scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: semester.events.length,
-                    itemBuilder: (context, index) {
-                      final event = semester.events[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: _getScoreColor(
-                              event.conductScore.toDouble(),
-                            ),
-                            child: Text(
-                              '+${event.conductScore}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            event.eventName,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(event.eventTypeName),
-                              Text(
-                                'Buổi: ${event.session}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              Text(
-                                'Ngày: ${event.formattedCreditDate}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(event.status),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              event.statusText,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  double _calculateAverageScore() {
-    if (filteredSemesters.isEmpty) return 0;
-    final sum = filteredSemesters.fold<double>(
-      0,
-      (sum, semester) => sum + semester.totalScore,
-    );
-    return sum / filteredSemesters.length;
-  }
-
-  String _getOverallClassification() {
-    final avg = _calculateAverageScore();
-    return _getClassification(avg.toInt());
-  }
-
-  String _getClassification(int score) {
-    if (score >= 90) return 'Xuất sắc';
-    if (score >= 80) return 'Giỏi';
-    if (score >= 70) return 'Khá';
-    if (score >= 50) return 'Trung bình';
-    return 'Yếu';
-  }
-
-  Color _getScoreColor(double score) {
-    if (score >= 90) return const Color(0xFF4CAF50);
-    if (score >= 80) return const Color(0xFF2196F3);
-    if (score >= 70) return const Color(0xFFFF9800);
-    if (score >= 50) return const Color(0xFFFFC107);
-    return const Color(0xFFF44336);
-  }
-
-  Color _getClassificationColor(String classification) {
-    switch (classification) {
-      case 'Xuất sắc':
-        return const Color(0xFF4CAF50);
-      case 'Giỏi':
-        return const Color(0xFF2196F3);
-      case 'Khá':
-        return const Color(0xFFFF9800);
-      case 'Trung bình':
-        return const Color(0xFFFFC107);
-      default:
-        return const Color(0xFFF44336);
-    }
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'attended':
-        return const Color(0xFF4CAF50);
-      case 'approved':
-        return const Color(0xFF2196F3);
-      case 'pending':
-        return const Color(0xFFFF9800);
-      case 'rejected':
-        return const Color(0xFFF44336);
-      default:
-        return Colors.grey;
-    }
   }
 }
