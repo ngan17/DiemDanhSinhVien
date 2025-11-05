@@ -11,6 +11,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   Map<String, dynamic>? userData;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -19,26 +20,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadUserData() async {
-    final user = await ApiService.getUserData();
-    if (mounted) {
-      setState(() {
-        userData = user;
-      });
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+     
+      final profileResult = await ApiService.getProfile();
+
+      if (profileResult['success'] == true) {
+        final data = profileResult['data'];
+        if (mounted) {
+          setState(() {
+            userData = {'user': data['user'], 'student': data['student']};
+            _isLoading = false;
+          });
+        }
+      } else {
+      
+        final localData = await ApiService.getUserData();
+        if (mounted) {
+          setState(() {
+            userData = localData;
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+     
+      final localData = await ApiService.getUserData();
+      if (mounted) {
+        setState(() {
+          userData = localData;
+          _isLoading = false;
+        });
+      }
     }
   }
 
   String get _userName {
-    return userData?['profile']?['studentName'] ??
-        userData?['profile']?['lecturerName'] ??
-        'Người dùng';
+    if (userData == null) return 'Người dùng';
+    return userData!['student']?['studentName'] ?? 'Người dùng';
   }
 
   String get _userCode {
-    if (userData?['role'] == 'student') {
-      return userData?['user']?['user_code'] ?? '';
-    } else {
-      return 'GV${userData?['profile']?['id'] ?? ''}';
-    }
+    if (userData == null) return '';
+    return userData!['student']?['id'] ?? '';
+  }
+
+  String get _userEmail {
+    if (userData == null) return '';
+    return userData!['user']?['email'] ?? '';
+  }
+
+  String get _userRole {
+    if (userData == null) return '';
+    return userData!['user']?['role'] ?? '';
+  }
+
+  String get _classId {
+    if (userData == null) return '';
+    return userData!['student']?['classId'] ?? '';
   }
 
   @override
@@ -58,142 +100,189 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         centerTitle: true,
+      
       ),
-      body: ListView(
-        children: [
-          const SizedBox(height: 16),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadUserData,
+              child: ListView(
+                children: [
+                  const SizedBox(height: 16),
 
-          // User Profile Card
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 35,
-                      backgroundColor: Colors.grey[200],
-                      child: const Icon(
-                        Icons.person,
-                        size: 40,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
+                  // User Profile Card
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
-                        child: Icon(
-                          Icons.camera_alt,
-                          size: 16,
-                          color: Colors.grey[600],
-                        ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _userName,
-                        style: const TextStyle(
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 35,
+                                  backgroundColor: Colors.grey[200],
+                                  child: const Icon(
+                                    Icons.person,
+                                    size: 40,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.camera_alt,
+                                      size: 16,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _userName,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'MSSV: $_userCode',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  if (_classId.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Lớp: $_classId',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                     
+                        
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Settings Options
+                  _buildSettingsItem(
+                    icon: Icons.edit,
+                    title: 'Chỉnh sửa hồ sơ',
+                    onTap: _showEditProfileDialog,
+                  ),
+                  _buildSettingsItem(
+                    icon: Icons.lock_outline,
+                    title: 'Đổi mật khẩu',
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Chức năng đang phát triển'),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildSettingsItem(
+                    icon: Icons.notifications_outlined,
+                    title: 'Cài đặt thông báo',
+                    trailing: Switch(
+                      value: true,
+                      onChanged: (value) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Chức năng đang phát triển'),
+                          ),
+                        );
+                      },
+                      activeColor: const Color(0xFF4CAF50),
+                    ),
+                    onTap: null,
+                  ),
+                  _buildSettingsItem(
+                    icon: Icons.language,
+                    title: 'Ngôn ngữ',
+                    subtitle: 'Tiếng Việt',
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Chức năng đang phát triển'),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildSettingsItem(
+                    icon: Icons.info_outline,
+                    title: 'Trợ giúp & Phản hồi',
+                    onTap: _showAboutDialog,
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Logout Button
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    child: ElevatedButton(
+                      onPressed: _showLogoutDialog,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEF5350),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Đăng xuất',
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _userCode,
-                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
 
-          const SizedBox(height: 24),
-
-          // Settings Options
-          _buildSettingsItem(
-            icon: Icons.edit,
-            title: 'Chỉnh sửa hồ sơ',
-            onTap: _showEditProfileDialog,
-          ),
-          _buildSettingsItem(
-            icon: Icons.lock_outline,
-            title: 'Đổi mật khẩu',
-            trailing: Switch(
-              value: true,
-              onChanged: (value) {},
-              activeColor: const Color(0xFF4CAF50),
-            ),
-            onTap: null,
-          ),
-          _buildSettingsItem(
-            icon: Icons.language,
-            title: 'Cài sắt thông báo',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Chức năng đang phát triển')),
-              );
-            },
-          ),
-          _buildSettingsItem(
-            icon: Icons.info_outline,
-            title: 'Trợ giúp & Phản hồi',
-            subtitle: 'Tiếng Việt',
-            onTap: _showAboutDialog,
-          ),
-
-          const SizedBox(height: 24),
-
-          // Logout Button
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            child: ElevatedButton(
-              onPressed: _showLogoutDialog,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEF5350),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                'Đăng xuất',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
-          ),
-
-          const SizedBox(height: 40),
-        ],
-      ),
     );
   }
 
@@ -228,7 +317,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             : null,
         trailing:
             trailing ??
-            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+            (onTap != null
+                ? Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Colors.grey[400],
+                  )
+                : null),
         onTap: onTap,
       ),
     );
@@ -236,21 +331,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showEditProfileDialog() {
     final nameController = TextEditingController(text: _userName);
-    final emailController = TextEditingController(
-      text: userData?['email'] ?? '',
-    );
-    final phoneController = TextEditingController(
-      text: userData?['profile']?['phone'] ?? '',
-    );
+    final emailController = TextEditingController(text: _userEmail);
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Chỉnh sửa thông tin'),
+        title: const Text('Thông tin cá nhân'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextField(
                 decoration: const InputDecoration(
@@ -259,6 +350,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   prefixIcon: Icon(Icons.person),
                 ),
                 controller: nameController,
+                enabled: false,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'MSSV',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.badge),
+                ),
+                controller: TextEditingController(text: _userCode),
+                enabled: false,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Lớp',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.class_),
+                ),
+                controller: TextEditingController(text: _classId),
+                enabled: false,
               ),
               const SizedBox(height: 16),
               TextField(
@@ -270,15 +382,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 controller: emailController,
                 enabled: false,
               ),
-              const SizedBox(height: 16),
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Số điện thoại',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.phone),
+              const SizedBox(height: 12),
+              Text(
+                'Thông tin không thể chỉnh sửa. Vui lòng liên hệ admin nếu cần thay đổi.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
                 ),
-                controller: phoneController,
-                keyboardType: TextInputType.phone,
               ),
             ],
           ),
@@ -286,21 +397,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Chức năng cập nhật thông tin đang phát triển'),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2196F3),
-            ),
-            child: const Text('Lưu', style: TextStyle(color: Colors.white)),
+            child: const Text('Đóng'),
           ),
         ],
       ),
@@ -327,7 +424,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Student Training Score App',
+              'Điểm Danh Sinh Viên',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
@@ -388,8 +485,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => WillPopScope(
-        onWillPop: () async => false,
+      builder: (context) => PopScope(
+        canPop: false,
         child: const Center(
           child: Card(
             child: Padding(

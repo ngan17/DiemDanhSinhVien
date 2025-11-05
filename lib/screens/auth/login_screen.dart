@@ -12,7 +12,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _identifierController = TextEditingController(); // Thay đổi từ email
+  final _identifierController = TextEditingController(); 
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _rememberMe = false;
@@ -33,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       try {
         final result = await ApiService.login(
-          identifier: _identifierController.text.trim(), // Dùng identifier
+          identifier: _identifierController.text.trim(), 
           password: _passwordController.text,
           role: 'student',
         );
@@ -44,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
           _isLoading = false;
         });
 
-        // Check if success is true (handle both bool and string)
+      
         final isSuccess =
             result['success'] == true ||
             result['success'] == 'true' ||

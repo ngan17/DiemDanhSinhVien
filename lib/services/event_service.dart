@@ -1,16 +1,15 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'api_service.dart';
+import 'local_notification_service.dart';
 
 class EventService {
   static const String baseUrl = ApiService.baseUrl;
 
-  // 1. Lấy tất cả sự kiện (không cần token)
   static Future<Map<String, dynamic>> getAllEvents({String? status}) async {
     try {
       var uri = Uri.parse('$baseUrl/events');
 
-      // Thêm query parameter nếu có
       if (status != null) {
         uri = Uri.parse('$baseUrl/events?status=$status');
       }
@@ -55,7 +54,6 @@ class EventService {
     }
   }
 
-  // 3. Đăng ký sự kiện (cần token)
   static Future<Map<String, dynamic>> registerEvent({
     required int eventDetailId,
     bool? useCertificate,
@@ -76,6 +74,23 @@ class EventService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201) {
+        // Đặt lịch local notification nếu có thông tin
+        if (data['data'] != null && data['data']['localNotification'] != null) {
+          final localNotif = data['data']['localNotification'];
+          try {
+            await LocalNotificationService().scheduleEventReminder(
+              id: localNotif['id'],
+              title: localNotif['title'],
+              body: localNotif['body'],
+              scheduledTime: DateTime.parse(localNotif['scheduledTime']),
+              payload: localNotif['payload'],
+            );
+            print('Đã đặt lịch nhắc nhở trước 1 ngày');
+          } catch (e) {
+            print('Error scheduling notification: $e');
+          }
+        }
+
         return {
           'success': true,
           'data': data['data'],
@@ -92,7 +107,6 @@ class EventService {
     }
   }
 
-  // 4. Hủy đăng ký
   static Future<Map<String, dynamic>> cancelRegistration(
     int registrationId,
   ) async {
@@ -117,7 +131,6 @@ class EventService {
     }
   }
 
-  // 5. Lấy danh sách sự kiện đã đăng ký
   static Future<Map<String, dynamic>> getMyRegistrations() async {
     try {
       final response = await http.get(
@@ -133,42 +146,6 @@ class EventService {
         return {
           'success': false,
           'message': data['message'] ?? 'Lỗi khi lấy danh sách',
-        };
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Lỗi kết nối: $e'};
-    }
-  }
-
-  // 6. Gửi feedback
-  static Future<Map<String, dynamic>> submitFeedback({
-    required int registeredEventId,
-    required String content,
-    String? proof,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/events/feedback'),
-        headers: await ApiService.headersWithAuth,
-        body: jsonEncode({
-          'registeredEventId': registeredEventId,
-          'content': content,
-          if (proof != null) 'proof': proof,
-        }),
-      );
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 201) {
-        return {
-          'success': true,
-          'data': data['data'],
-          'message': data['message'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': data['message'] ?? 'Gửi feedback thất bại',
         };
       }
     } catch (e) {

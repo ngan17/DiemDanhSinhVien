@@ -22,18 +22,17 @@ class ConductScoreService {
     };
   }
 
-  // 1. Lấy tổng điểm
-  static Future<ConductScoreTotal?> getTotalScore() async {
+  static Future<Map<String, dynamic>?> getSemesters() async {
     try {
       final headers = await _getHeaders();
       final response = await http.get(
-        Uri.parse('$baseUrl/conduct-score/total'),
+        Uri.parse('$baseUrl/conduct-score/semesters'),
         headers: headers,
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
-        return ConductScoreTotal.fromJson(data);
+        return data['data'];
       } else {
         print('Error: ${response.statusCode} - ${response.body}');
         return null;
@@ -43,46 +42,18 @@ class ConductScoreService {
       return null;
     }
   }
-
   // 2. Lấy điểm theo học kỳ
-  static Future<Map<String, dynamic>?> getScoreBySemester({
-    int? startYear,
-    int? semester,
-  }) async {
+   static Future<Map<String, dynamic>?> getScoreBySemesterId(int semesterId) async {
     try {
       final headers = await _getHeaders();
-
-      // Build query parameters
-      String url = '$baseUrl/conduct-score/by-semester';
-      List<String> queryParams = [];
-
-      if (startYear != null) {
-        queryParams.add('startYear=$startYear');
-      }
-      if (semester != null) {
-        queryParams.add('semester=$semester');
-      }
-
-      if (queryParams.isNotEmpty) {
-        url += '?${queryParams.join('&')}';
-      }
-
-      final response = await http.get(Uri.parse(url), headers: headers);
+      final response = await http.get(
+        Uri.parse('$baseUrl/conduct-score/by-semester?semesterId=$semesterId'),
+        headers: headers,
+      );
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
-
-        // Parse response
-        final responseData = data['data'];
-        return {
-          'studentId': responseData['studentId'],
-          'studentName': responseData['studentName'],
-          'totalConductScore': responseData['totalConductScore'] ?? 0,
-          'semesters': (responseData['semesters'] as List)
-              .map((s) => SemesterScore.fromJson(s))
-              .toList(),
-          'totalEventsAttended': responseData['totalEventsAttended'] ?? 0,
-        };
+        return data['data'];
       } else {
         print('Error: ${response.statusCode} - ${response.body}');
         return null;
@@ -115,47 +86,4 @@ class ConductScoreService {
     }
   }
 
-  // 4. Lấy lịch sử điểm
-  static Future<Map<String, dynamic>?> getScoreHistory() async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/conduct-score/history'),
-        headers: headers,
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
-        return data['data'];
-      } else {
-        print('Error: ${response.statusCode} - ${response.body}');
-        return null;
-      }
-    } catch (e) {
-      print('Exception: $e');
-      return null;
-    }
-  }
-
-  // 5. Lấy thống kê
-  static Future<ScoreStatistics?> getStatistics() async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/conduct-score/statistics'),
-        headers: headers,
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
-        return ScoreStatistics.fromJson(data);
-      } else {
-        print('Error: ${response.statusCode} - ${response.body}');
-        return null;
-      }
-    } catch (e) {
-      print('Exception: $e');
-      return null;
-    }
-  }
 }

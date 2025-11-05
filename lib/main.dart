@@ -1,7 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'screens/auth/splash_screen.dart';
+import 'screens/dashboard/dashboard_screen.dart';
+import 'services/local_notification_service.dart';
+import 'services/fcm_service.dart';
+import 'services/api_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  await Firebase.initializeApp();
+
+  // Initialize Local Notifications
+  await LocalNotificationService().initialize();
+
+  // Initialize FCM if user is logged in
+  final token = await ApiService.getToken();
+  if (token != null) {
+    await FCMService().initialize(token);
+  }
+
   runApp(const MyApp());
 }
 

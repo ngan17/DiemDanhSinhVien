@@ -43,10 +43,10 @@ class _EventListScreenState extends State<EventListScreen>
 
     try {
       if (tabIndex == 0) {
-        // Đang mở - Load open events
+      
         await _loadOpenEvents();
       } else if (tabIndex == 1) {
-        // Đã đăng ký - Load my registrations (pending & approved)
+      
         await _loadMyRegistrations(false);
       } else {
         // Lịch sử - Load history (attended & rejected)
@@ -69,7 +69,7 @@ class _EventListScreenState extends State<EventListScreen>
 
   Future<void> _loadOpenEvents() async {
     try {
-      // Lấy tất cả sự kiện (không filter status để lấy hết)
+    
       final result = await EventService.getAllEvents();
       if (!mounted) return;
 
@@ -79,7 +79,7 @@ class _EventListScreenState extends State<EventListScreen>
             .map((json) => EventModel.fromJson(json))
             .toList();
 
-        // Filter chỉ lấy sự kiện chưa kết thúc (upcoming và ongoing)
+       
         setState(() {
           _openEvents = allEvents.where((event) => !event.isEnded).toList();
         });
@@ -122,19 +122,19 @@ class _EventListScreenState extends State<EventListScreen>
 
         setState(() {
           if (isHistory) {
-            // Lịch sử: attended & rejected
+            
             _historyRegistrations = allRegs
                 .where((r) => r.status == 'attended' || r.status == 'rejected')
                 .toList();
           } else {
-            // Đã đăng ký: pending & approved
+           
             _myRegistrations = allRegs
                 .where((r) => r.status == 'pending' || r.status == 'approved')
                 .toList();
           }
         });
       } else {
-        // Hiển thị lỗi từ API
+     
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -160,7 +160,7 @@ class _EventListScreenState extends State<EventListScreen>
   }
 
   Future<void> _registerEvent(EventModel event) async {
-    // Navigate to detail screen for registration
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -254,12 +254,7 @@ class _EventListScreenState extends State<EventListScreen>
           ),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.black87),
-            onPressed: () => _loadTabData(_tabController.index),
-          ),
-        ],
+     
         bottom: TabBar(
           controller: _tabController,
           labelColor: const Color(0xFF2196F3),

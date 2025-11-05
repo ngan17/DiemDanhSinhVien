@@ -1,7 +1,11 @@
+import 'package:diem_danh_sinh_vien/screens/events/event_detail_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 import '../../models/event_model.dart';
 import '../../services/event_service.dart';
 import '../../services/api_service.dart';
+import '../../services/notification_service.dart';
 import '../settings/settings_screen.dart';
 import '../events/event_list_screen.dart';
 import 'training_score_screen.dart';
@@ -17,6 +21,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<EventModel> upcomingEvents = [];
   List<EventRegistrationModel> myRegistrations = [];
   Map<String, dynamic>? userData;
+  String? studentName;
+  String? studentId;
+  String? userRole;
   bool _isLoading = true;
   int _selectedIndex = 0;
 
@@ -32,14 +39,49 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
 
     try {
-      final user = await ApiService.getUserData();
+      // Gọi API getProfile để lấy thông tin mới nhất từ server
+      final profileResult = await ApiService.getProfile();
+
+      if (profileResult['success'] == true) {
+        // Lấy thông tin từ response API
+        final data = profileResult['data'];
+        if (data != null) {
+          final student = data['student'];
+          final user = data['user'];
+          print('user Info: $user');
+          print('student Info: $student');
+
+          // Lưu thông tin vào biến state
+          setState(() {
+            userData = {'user': user, 'student': student};
+            studentName = student?['studentName'];
+            studentId = student?['id'];
+            userRole = user?['role'];
+          });
+        }
+      } else {
+        print('Failed to get profile: ${profileResult['message']}');
+        // Fallback: lấy từ SharedPreferences nếu API thất bại
+        final localData = await ApiService.getUserData();
+        if (localData != null) {
+          final student = localData['student'];
+          final user = localData['user'];
+
+          setState(() {
+            userData = localData;
+            studentName = student?['studentName'];
+            studentId = student?['id'];
+            userRole = user?['role'];
+          });
+        }
+      }
+
+      // Lấy danh sách sự kiện
       final eventsResult = await EventService.getAllEvents();
       final regsResult = await EventService.getMyRegistrations();
 
       if (mounted) {
         setState(() {
-          userData = user;
-
           if (eventsResult['success'] == true) {
             final List<dynamic> eventsJson = eventsResult['data'] ?? [];
             final allEvents = eventsJson
@@ -73,6 +115,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    }
+
+    // Lưu FCM token nếu người dùng đã đăng nhập
+    if (studentId != null) {
+      String? accessToken =
+          await ApiService.getToken(); 
+      String? fcmToken = await FirebaseMessaging.instance.getToken();
+      if (accessToken != null && fcmToken != null) {
+        await NotificationService.saveFcmToken(fcmToken, accessToken);
       }
     }
   }
@@ -147,7 +199,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Xin chào, ${userData?['profile']?['studentName'] ?? 'Sinh viên'}',
+                          'Xin chào, ${studentName ?? 'Sinh viên'}',
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -156,7 +208,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          'MSSV: ${userData?['user_code'] ?? '----'}',
+                          'MSSV: ${studentId ?? '----'}',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[600],
@@ -321,19 +373,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildEventCard(EventModel event) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EventDetailScreen(eventId: event.id),
           ),
-        ],
-      ),
+        );
+      },
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

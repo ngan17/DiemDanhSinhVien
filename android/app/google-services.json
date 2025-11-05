@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "622320024185",
+    "project_id": "diemrenluyen-15906",
+    "storage_bucket": "diemrenluyen-15906.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:622320024185:android:91e54d3e3ec497fdf1b2a8",
+        "android_client_info": {
+          "package_name": "com.example.diem_danh_sinh_vien"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAu_RXN7P413pPrkWxmAgWzD6_TPzIE_9o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

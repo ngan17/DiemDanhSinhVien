@@ -137,136 +137,8 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
     }
   }
 
-  Future<void> _submitFeedback(EventRegistrationModel registration) async {
-    final contentController = TextEditingController();
-    int rating = 5;
 
-    await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Gửi feedback'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  registration.eventName,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                const Text('Đánh giá:'),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (index) {
-                    return IconButton(
-                      icon: Icon(
-                        index < rating ? Icons.star : Icons.star_border,
-                        color: Colors.amber,
-                        size: 32,
-                      ),
-                      onPressed: () {
-                        setDialogState(() {
-                          rating = index + 1;
-                        });
-                      },
-                    );
-                  }),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: contentController,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Nội dung feedback',
-                    hintText: 'Nhập nhận xét của bạn...',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Hủy'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (contentController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Vui lòng nhập nội dung feedback'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                  return;
-                }
 
-                Navigator.pop(context, true);
-
-                // Show loading
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (ctx) =>
-                      const Center(child: CircularProgressIndicator()),
-                );
-
-                try {
-                  final result = await EventService.submitFeedback(
-                    registeredEventId: registration.registrationId,
-                    content: contentController.text.trim(),
-                  );
-
-                  if (!mounted) return;
-
-                  // Close loading
-                  Navigator.pop(context);
-
-                  if (result['success'] == true) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          result['message'] ?? 'Gửi feedback thành công!',
-                        ),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          result['message'] ?? 'Gửi feedback thất bại',
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Lỗi: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E90FF),
-              ),
-              child: const Text('Gửi', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Color _getStatusColor(String status) {
     switch (status) {
@@ -468,33 +340,8 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
               ],
             ),
 
-            // Certificate Info
-            if (registration.useCertificate ||
-                registration.requireCertificate) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: [
-                  if (registration.useCertificate)
-                    Chip(
-                      label: const Text('Sử dụng chứng chỉ'),
-                      labelStyle: const TextStyle(fontSize: 11),
-                      backgroundColor: Colors.blue[50],
-                      padding: EdgeInsets.zero,
-                    ),
-                  if (registration.requireCertificate)
-                    Chip(
-                      label: const Text('Yêu cầu chứng chỉ'),
-                      labelStyle: const TextStyle(fontSize: 11),
-                      backgroundColor: Colors.orange[50],
-                      padding: EdgeInsets.zero,
-                    ),
-                ],
-              ),
-            ],
-
-            // Action Buttons
-            const SizedBox(height: 12),
+            // Registered Time
+            const SizedBox(height: 6),
             Row(
               children: [
                 // Cancel Button (only for pending status)
@@ -511,22 +358,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                     ),
                   ),
 
-                // Feedback Button (for attended status)
-                if (registration.status == 'attended') ...[
-                  if (registration.status == 'pending')
-                    const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _submitFeedback(registration),
-                      icon: const Icon(Icons.feedback, size: 18),
-                      label: const Text('Feedback'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E90FF),
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
+              
               ],
             ),
           ],
