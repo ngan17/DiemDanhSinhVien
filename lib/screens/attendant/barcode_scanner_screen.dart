@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../services/attendant_service.dart';
 
@@ -19,9 +20,13 @@ class BarcodeScannerScreen extends StatefulWidget {
 }
 
 class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
-  final MobileScannerController _cameraController = MobileScannerController();
+  final MobileScannerController _cameraController = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
+    facing: CameraFacing.back,
+  );
   bool _isProcessing = false;
   bool _flashOn = false;
+  int _successCount = 0;
 
   @override
   void dispose() {
@@ -29,10 +34,28 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     super.dispose();
   }
 
+  // Phát âm thanh beep khi quét
+  Future<void> _playBeep({bool isSuccess = true}) async {
+    try {
+      if (isSuccess) {
+        // Âm thanh thành công - beep ngắn
+        await SystemSound.play(SystemSoundType.click);
+      } else {
+        // Âm thanh thất bại - beep dài hơn
+        await SystemSound.play(SystemSoundType.alert);
+      }
+    } catch (e) {
+      print('Error playing sound: $e');
+    }
+  }
+
   Future<void> _handleBarcode(String barcode) async {
     if (_isProcessing) return;
 
     setState(() => _isProcessing = true);
+
+    // Phát âm thanh beep ngay khi quét được
+    await _playBeep(isSuccess: true);
 
     try {
       final result = await AttendantService.attendByBarcode(
@@ -41,24 +64,71 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       );
 
       if (mounted) {
-        _showResultDialog(result);
+        final isSuccess = result['success'] == true;
+
+        if (isSuccess) {
+          _successCount++;
+          setState(() {});
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '✓ ${result['studentName']}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          'MSSV: ${result['studentId']}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(milliseconds: 1500),
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.only(bottom: 100, left: 16, right: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+
+          await Future.delayed(const Duration(milliseconds: 500));
+        } else {
+          // Phát âm thanh lỗi
+          await _playBeep(isSuccess: false);
+          _showErrorDialog(result);
+          await Future.delayed(const Duration(seconds: 2));
+        }
       }
     } catch (e) {
       if (mounted) {
-        _showResultDialog({'success': false, 'message': 'Lỗi: $e'});
+        await _playBeep(isSuccess: false);
+        _showErrorDialog({'success': false, 'message': 'Lỗi: $e'});
+        await Future.delayed(const Duration(seconds: 2));
       }
     } finally {
-      // Delay 2 giây trước khi cho phép quét tiếp
-      await Future.delayed(const Duration(seconds: 2));
       if (mounted) {
         setState(() => _isProcessing = false);
       }
     }
   }
 
-  void _showResultDialog(Map<String, dynamic> result) {
-    final isSuccess = result['success'] == true;
-
+  void _showErrorDialog(Map<String, dynamic> result) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -73,24 +143,18 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isSuccess
-                      ? Colors.green.withOpacity(0.1)
-                      : Colors.red.withOpacity(0.1),
+                  color: Colors.red.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  isSuccess ? Icons.check_circle : Icons.error,
-                  color: isSuccess ? Colors.green : Colors.red,
-                  size: 56,
-                ),
+                child: const Icon(Icons.error, color: Colors.red, size: 56),
               ),
               const SizedBox(height: 16),
-              Text(
-                isSuccess ? 'Điểm danh thành công!' : 'Điểm danh thất bại!',
+              const Text(
+                'Điểm danh thất bại!',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: isSuccess ? Colors.green : Colors.red,
+                  color: Colors.red,
                 ),
               ),
               const SizedBox(height: 12),
@@ -106,7 +170,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.badge, size: 18, color: Colors.blue),
+                          const Icon(Icons.badge, size: 18, color: Colors.red),
                           const SizedBox(width: 6),
                           Text(
                             'MSSV: ${result['studentId']}',
@@ -122,11 +186,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(
-                            Icons.person,
-                            size: 18,
-                            color: Colors.blue,
-                          ),
+                          const Icon(Icons.person, size: 18, color: Colors.red),
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
@@ -134,7 +194,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.blue,
+                                color: Colors.red,
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -147,7 +207,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                 const SizedBox(height: 12),
               ],
               Text(
-                result['message'] ?? '',
+                result['message'] ?? 'Có lỗi xảy ra',
                 style: const TextStyle(fontSize: 14, color: Colors.black87),
                 textAlign: TextAlign.center,
               ),
@@ -160,7 +220,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
             child: ElevatedButton(
               onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: isSuccess ? Colors.green : Colors.red,
+                backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -204,6 +264,29 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
         ),
         backgroundColor: Colors.black,
         actions: [
+          if (_successCount > 0)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '$_successCount ✓',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           IconButton(
             icon: Icon(_flashOn ? Icons.flash_on : Icons.flash_off),
             onPressed: _toggleFlash,
@@ -215,16 +298,20 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
         children: [
           MobileScanner(
             controller: _cameraController,
+            placeholderBuilder: (context, child) {
+              return const ColoredBox(
+                color: Colors.black,
+                child: Center(
+                  child: CircularProgressIndicator(color: Colors.green),
+                ),
+              );
+            },
             onDetect: (capture) {
               final List<Barcode> barcodes = capture.barcodes;
               if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
                 _handleBarcode(barcodes.first.rawValue!);
               }
             },
-          ),
-          // Overlay
-          Container(
-            decoration: BoxDecoration(color: Colors.black.withOpacity(0.5)),
           ),
           Center(
             child: Container(
@@ -236,14 +323,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                   width: 3,
                 ),
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: (_isProcessing ? Colors.orange : Colors.green)
-                        .withOpacity(0.5),
-                    blurRadius: 20,
-                    spreadRadius: 5,
-                  ),
-                ],
               ),
               child: CustomPaint(
                 painter: ScannerOverlayPainter(isProcessing: _isProcessing),
@@ -254,74 +333,63 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
             bottom: 80,
             left: 0,
             right: 0,
-            child: Column(
-              children: [
-                if (_isProcessing)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.orange,
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: _isProcessing
+                      ? Colors.orange
+                      : Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: _isProcessing
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           ),
-                        ),
-                        SizedBox(width: 12),
-                        Text(
-                          'Đang xử lý...',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                          SizedBox(width: 12),
+                          Text(
+                            'Đang xử lý...',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(
-                          Icons.qr_code_scanner,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                        SizedBox(width: 12),
-                        Text(
-                          'Đưa mã vào khung để quét',
-                          style: TextStyle(
+                        ],
+                      )
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(
+                            Icons.qr_code_scanner,
                             color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                            size: 24,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
+                          SizedBox(width: 12),
+                          Text(
+                            'Đưa mã vào khung để quét',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
             ),
           ),
         ],
@@ -344,11 +412,9 @@ class ScannerOverlayPainter extends CustomPainter {
 
     const double cornerLength = 30;
 
-    // Top-left
     canvas.drawLine(const Offset(0, 0), const Offset(cornerLength, 0), paint);
     canvas.drawLine(const Offset(0, 0), const Offset(0, cornerLength), paint);
 
-    // Top-right
     canvas.drawLine(
       Offset(size.width - cornerLength, 0),
       Offset(size.width, 0),
@@ -360,7 +426,6 @@ class ScannerOverlayPainter extends CustomPainter {
       paint,
     );
 
-    // Bottom-left
     canvas.drawLine(
       Offset(0, size.height - cornerLength),
       Offset(0, size.height),
@@ -372,7 +437,6 @@ class ScannerOverlayPainter extends CustomPainter {
       paint,
     );
 
-    // Bottom-right
     canvas.drawLine(
       Offset(size.width - cornerLength, size.height),
       Offset(size.width, size.height),
