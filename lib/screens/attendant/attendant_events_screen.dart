@@ -293,7 +293,7 @@ class _AttendantEventsScreenState extends State<AttendantEventsScreen> {
       MaterialPageRoute(
         builder: (context) => AttendantEventDetailScreen(
           eventId: event['id'],
-          eventName: event['eventName'],
+          
         ),
       ),
     );

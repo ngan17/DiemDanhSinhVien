@@ -30,7 +30,7 @@ class AttendantService {
       rethrow;
     }
   }
-
+// Lấy chi tiết sự kiện
   static Future<Map<String, dynamic>> getEventDetail(int eventId) async {
     try {
       final response = await http.get(
@@ -38,20 +38,18 @@ class AttendantService {
         headers: AuthService.headers,
       );
 
-      print('Event detail response status: ${response.statusCode}');
-      print('Event detail response body: ${response.body}');
+      final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        final result = json.decode(response.body);
-
-        return result['data'] ?? result;
+        return {'success': true, 'data': data['data']};
       } else {
-        print('Error response: ${response.body}');
-        throw Exception('Failed to load event detail: ${response.statusCode}');
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Không tìm thấy sự kiện',
+        };
       }
     } catch (e) {
-      print('Error fetching event detail: $e');
-      rethrow;
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
 
