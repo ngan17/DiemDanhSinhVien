@@ -1,10 +1,13 @@
 import 'package:diem_danh_sinh_vien/screens/events/event_detail_screen.dart';
+import 'package:diem_danh_sinh_vien/screens/notifications/notification_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import '../../services/fcm_service.dart';
+import '../../main.dart'; 
 
 import '../../models/event_model.dart';
 import '../../services/event_service.dart';
-import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
 import '../settings/settings_screen.dart';
 import '../events/event_list_screen.dart';
@@ -26,11 +29,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? userRole;
   bool _isLoading = true;
   int _selectedIndex = 0;
-
+  int _unreadNotificationCount = 0; 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _initializeFCM(); 
+    _loadUnreadNotificationCount();
+  }
+  Future<void> _loadUnreadNotificationCount() async {
+    final result = await NotificationService.getNotifications(page: 1, perPage: 100);
+    
+    if (result['success'] == true && mounted) {
+      final notifications = result['data'] as List;
+      setState(() {
+        _unreadNotificationCount = notifications.where((n) => n['isRead'] == 0).length;
+      });
+    }
+  }
+  Future<void> _initializeFCM() async {
+    String? accessToken = await AuthService.getToken();
+    if (accessToken != null) {
+      await FCMService().initialize(accessToken, navigatorKey);
+    }
   }
 
   Future<void> _loadData() async {
@@ -39,11 +60,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
 
     try {
-      // Gọi API getProfile để lấy thông tin mới nhất từ server
-      final profileResult = await ApiService.getProfile();
+   
+      final profileResult = await AuthService.getProfile();
 
       if (profileResult['success'] == true) {
-        // Lấy thông tin từ response API
+       
         final data = profileResult['data'];
         if (data != null) {
           final student = data['student'];
@@ -51,7 +72,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           print('user Info: $user');
           print('student Info: $student');
 
-          // Lưu thông tin vào biến state
+          
           setState(() {
             userData = {'user': user, 'student': student};
             studentName = student?['studentName'];
@@ -61,8 +82,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       } else {
         print('Failed to get profile: ${profileResult['message']}');
-        // Fallback: lấy từ SharedPreferences nếu API thất bại
-        final localData = await ApiService.getUserData();
+      
+        final localData = await AuthService.getUserData();
         if (localData != null) {
           final student = localData['student'];
           final user = localData['user'];
@@ -76,7 +97,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       }
 
-      // Lấy danh sách sự kiện
+
       final eventsResult = await EventService.getAllEvents();
       final regsResult = await EventService.getMyRegistrations();
 
@@ -118,10 +139,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
 
-    // Lưu FCM token nếu người dùng đã đăng nhập
     if (studentId != null) {
-      String? accessToken =
-          await ApiService.getToken(); 
+      String? accessToken = await AuthService.getToken();
       String? fcmToken = await FirebaseMessaging.instance.getToken();
       if (accessToken != null && fcmToken != null) {
         await NotificationService.saveFcmToken(fcmToken, accessToken);
@@ -130,6 +149,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _onItemTapped(int index) {
+    // Nếu nhấn vào tab Score (index 2), push màn hình mới
+    if (index == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const TrainingScoreScreen(),
+        ),
+      );
+      return; 
+    }
+    
     setState(() {
       _selectedIndex = index;
     });
@@ -141,8 +171,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return _buildHomeScreen();
       case 1:
         return const EventListScreen();
-      case 2:
-        return const TrainingScoreScreen();
       case 3:
         return const SettingsScreen();
       default:
@@ -220,19 +248,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
               actions: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.notifications_outlined,
-                    color: Colors.black87,
+                  Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const NotificationScreen(),
+                    ),
+                  );
+                 
+                  _loadUnreadNotificationCount();
+                },
+              ),
+              if (_unreadNotificationCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    child: Text(
+                      _unreadNotificationCount > 99 
+                          ? '99+' 
+                          : _unreadNotificationCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                  onPressed: () {},
                 ),
-                IconButton(
-                  icon: const Icon(Icons.menu, color: Colors.black87),
-                  onPressed: () {},
-                ),
-              ],
-            )
+            ],
+          ),
+          const SizedBox(width: 8),
+        ],
+      )
           : null,
       body: _buildCurrentScreen(),
       bottomNavigationBar: BottomNavigationBar(
@@ -293,9 +355,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: Icons.bar_chart,
               color: const Color(0xFF66BB6A),
               onTap: () {
-                setState(() {
-                  _selectedIndex = 2;
-                });
+                // Push sang màn hình mới thay vì chuyển tab
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const TrainingScoreScreen(),
+                  ),
+                );
               },
             ),
           ),

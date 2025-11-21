@@ -65,7 +65,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
   }
 
   Future<void> _cancelRegistration(EventRegistrationModel registration) async {
-    // Show confirmation dialog
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -92,7 +92,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
     if (confirmed != true) return;
 
-    // Show loading
+  
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -106,7 +106,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
       if (!mounted) return;
 
-      // Close loading dialog
+      
       Navigator.pop(context);
 
       if (result['success'] == true) {
@@ -116,7 +116,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        // Reload list
+   
         _loadMyRegistrations();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -128,7 +128,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        // Close loading dialog
+  
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),

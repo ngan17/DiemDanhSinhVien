@@ -1,20 +1,21 @@
 import 'dart:convert';
+import 'package:diem_danh_sinh_vien/config/app_config.dart';
 import 'package:http/http.dart' as http;
-import 'api_service.dart';
+import 'auth_service.dart';
 
 class NotificationService {
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
+  static const String baseUrl = AppConfig.baseUrl;
 
-  // Lấy danh sách thông báo
+
   static Future<Map<String, dynamic>> getNotifications({
     int page = 1,
     int perPage = 10,
   }) async {
     try {
-      final response = await ApiService.makeAuthenticatedRequest(() async {
+      final response = await AuthService.makeAuthenticatedRequest(() async {
         return await http.get(
           Uri.parse('$baseUrl/notifications?page=$page&perPage=$perPage'),
-          headers: await ApiService.headersWithAuth,
+          headers: await AuthService.headersWithAuth,
         );
       });
 
@@ -39,13 +40,13 @@ class NotificationService {
     }
   }
 
-  // Xóa thông báo
+
   static Future<Map<String, dynamic>> deleteNotification(int id) async {
     try {
-      final response = await ApiService.makeAuthenticatedRequest(() async {
+      final response = await AuthService.makeAuthenticatedRequest(() async {
         return await http.delete(
           Uri.parse('$baseUrl/notifications/$id'),
-          headers: await ApiService.headersWithAuth,
+          headers: await AuthService.headersWithAuth,
         );
       });
 
@@ -69,13 +70,13 @@ class NotificationService {
     }
   }
 
-  // Đánh dấu đã đọc
+
   static Future<Map<String, dynamic>> markAsRead(int id) async {
     try {
-      final response = await ApiService.makeAuthenticatedRequest(() async {
+      final response = await AuthService.makeAuthenticatedRequest(() async {
         return await http.put(
           Uri.parse('$baseUrl/notifications/$id/read'),
-          headers: await ApiService.headersWithAuth,
+          headers: await AuthService.headersWithAuth,
         );
       });
 

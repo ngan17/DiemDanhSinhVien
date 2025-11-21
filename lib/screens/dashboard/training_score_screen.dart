@@ -29,12 +29,13 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
       final result = await ConductScoreService.getSemesters();
       if (result != null) {
         setState(() {
-          semesters = result['semesters'];
+          semesters = result['semesters'] ?? [];
           selectedSemesterId = result['currentSemesterId'];
         });
 
-        // Tự động tải điểm của học kỳ hiện tại
-        await _loadScoreBySemester(selectedSemesterId!);
+        if (selectedSemesterId != null) {
+          await _loadScoreBySemester(selectedSemesterId!);
+        }
       }
     } catch (e) {
       print('Error loading semesters: $e');
@@ -66,9 +67,18 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
     }
   }
 
+  String _getScoreRating(int score) {
+    if (score >= 90) return 'Xuất sắc';
+    if (score >= 80) return 'Tốt';
+    if (score >= 65) return 'Khá';
+    if (score >= 50) return 'Trung bình';
+    return 'Yếu';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text(
           'Điểm rèn luyện',
@@ -76,25 +86,36 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
             color: Colors.black87,
             fontSize: 18,
             fontWeight: FontWeight.w600,
-            
           ),
         ),
         centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // Dropdown chọn học kỳ
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
+                Container(
+                  margin: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
                   child: DropdownButton<int>(
                     value: selectedSemesterId,
                     isExpanded: true,
+                    underline: const SizedBox(),
                     items: semesters.map((semester) {
                       return DropdownMenuItem<int>(
                         value: semester['id'],
-                        child: Text(semester['semesterName']),
+                        child: Text(semester['semesterName'] ?? ''),
                       );
                     }).toList(),
                     onChanged: (value) async {
@@ -108,7 +129,6 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
                   ),
                 ),
 
-                // Hiển thị điểm rèn luyện
                 if (selectedSemesterScore != null)
                   Expanded(
                     child: SingleChildScrollView(
@@ -116,7 +136,6 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Điểm tổng kết kỳ
                           Container(
                             padding: const EdgeInsets.all(16.0),
                             decoration: BoxDecoration(
@@ -126,9 +145,9 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                const Text(
                                   'Điểm tổng kết kỳ',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black87,
@@ -140,7 +159,7 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
                                       MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      '${selectedSemesterScore!['conductScore']}',
+                                      '${selectedSemesterScore!['totalScore'] ?? 0}',
                                       style: const TextStyle(
                                         fontSize: 32,
                                         fontWeight: FontWeight.bold,
@@ -148,7 +167,10 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
                                       ),
                                     ),
                                     Text(
-                                      'Tốt',
+                                      _getScoreRating(
+                                        selectedSemesterScore!['totalScore'] ??
+                                            0,
+                                      ),
                                       style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -162,7 +184,6 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Danh sách tiêu chí và sự kiện
                           const Text(
                             'Sự kiện đã tham gia:',
                             style: TextStyle(
@@ -171,73 +192,81 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          ...selectedSemesterScore!['eventsByType'].map((
-                            eventType,
-                          ) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 8),
-                                ...eventType['events'].map((event) {
-                                  return Container(
-                                    width: double.infinity,
-                                    margin: const EdgeInsets.symmetric(
-                                      vertical: 8.0,
+
+                          if (selectedSemesterScore!['events'] != null &&
+                              (selectedSemesterScore!['events'] as List)
+                                  .isNotEmpty)
+                            ...(selectedSemesterScore!['events'] as List).map((
+                              event,
+                            ) {
+                              return Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.symmetric(
+                                  vertical: 8.0,
+                                ),
+                                padding: const EdgeInsets.all(12.0),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
                                     ),
-                                    padding: const EdgeInsets.all(12.0),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(8),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      event['eventName'] ?? '',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          event['eventName'],
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Điểm: ${event['conductScore']} | Buổi: ${event['session']}',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Địa điểm: ${event['location']}',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Ngày: ${event['creditDate']}',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ],
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Điểm: ${event['conductScore'] ?? 0} | Buổi: ${event['session'] ?? ''}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
                                     ),
-                                  );
-                                }).toList(),
-                              ],
-                            );
-                          }).toList(),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Địa điểm: ${event['location'] ?? ''}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Ngày: ${event['creditDate'] ?? ''}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList()
+                          else
+                            const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Center(
+                                child: Text(
+                                  'Chưa tham gia sự kiện nào',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),

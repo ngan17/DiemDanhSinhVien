@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_config.dart';
 
-class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
+class AuthService {
+  static const String baseUrl = AppConfig.baseUrl;
   static bool _isRefreshing = false;
 
   static Future<void> saveToken(String token) async {
@@ -318,7 +319,54 @@ class ApiService {
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
+static Future<Map<String, dynamic>> changePassword({
+  required String currentPassword,
+  required String newPassword,
+  required String newPasswordConfirmation,
+}) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/change-password'), // Đường dẫn API
+      headers: await headersWithAuth, // Headers có chứa token
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+        'newPassword_confirmation': newPasswordConfirmation,
+      }),
+    );
 
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return {
+        'success': true,
+        'message': data['message'] ?? 'Đổi mật khẩu thành công',
+      };
+    } else if (response.statusCode == 400 || response.statusCode == 422) {
+      final data = jsonDecode(response.body);
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Dữ liệu không hợp lệ',
+        'errors': data['errors'] ?? {},
+      };
+    } else if (response.statusCode == 401) {
+      return {
+        'success': false,
+        'message': 'Vui lòng đăng nhập lại',
+      };
+    } else {
+      final data = jsonDecode(response.body);
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Đổi mật khẩu thất bại',
+      };
+    }
+  } catch (e) {
+    return {
+      'success': false,
+      'message': 'Không thể kết nối đến server: $e',
+    };
+  }
+}
   static Future<Map<String, dynamic>> logout() async {
     try {
       final response = await http.post(
@@ -360,13 +408,12 @@ class ApiService {
     }
   }
 
-  // Thêm phương thức này
+
   static Future<http.Response> makeAuthenticatedRequest(
     Future<http.Response> Function() request,
   ) async {
     var response = await request();
 
-    // Nếu token hết hạn (401), thử refresh
     if (response.statusCode == 401 && !_isRefreshing) {
       _isRefreshing = true;
 
@@ -374,10 +421,10 @@ class ApiService {
         final refreshResult = await refreshToken();
 
         if (refreshResult['success'] == true) {
-          // Token mới đã được lưu, thử lại request
+       
           response = await request();
         } else {
-          // Refresh thất bại, xóa token
+
           await removeToken();
           await removeUserData();
         }

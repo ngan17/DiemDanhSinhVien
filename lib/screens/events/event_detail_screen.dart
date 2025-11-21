@@ -15,7 +15,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   EventModel? _event;
   List<EventSessionModel> _sessions = [];
   bool _isLoading = true;
-  bool _isRegistering = false;
+  // Thay đổi từ bool thành Set<int> để track từng session riêng biệt
+  Set<int> _registeringSessions = {};
 
   @override
   void initState() {
@@ -81,7 +82,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       return;
     }
 
-    // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -116,8 +116,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
     if (confirmed != true) return;
 
+    // Thêm session ID vào set đang đăng ký
     setState(() {
-      _isRegistering = true;
+      _registeringSessions.add(session.id);
     });
 
     try {
@@ -129,8 +130,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
       if (!mounted) return;
 
+      // Xóa session ID khỏi set đang đăng ký
       setState(() {
-        _isRegistering = false;
+        _registeringSessions.remove(session.id);
       });
 
       if (result['success'] == true) {
@@ -140,9 +142,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        // Reload data
         _loadEventDetail();
-        // Return true to refresh previous screen
         Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -154,8 +154,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
+        // Xóa session ID khỏi set đang đăng ký khi có lỗi
         setState(() {
-          _isRegistering = false;
+          _registeringSessions.remove(session.id);
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
@@ -347,7 +348,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                       ),
                     ),
 
-                    // Sessions List
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
@@ -405,6 +405,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
 
   Widget _buildSessionCard(EventSessionModel session) {
+    // Kiểm tra xem session này có đang được đăng ký không
+    final isThisSessionRegistering = _registeringSessions.contains(session.id);
+
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 12),
@@ -414,7 +417,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Session Name & Status
             Row(
               children: [
                 Expanded(
@@ -451,7 +453,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Location
             Row(
               children: [
                 Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
@@ -466,7 +467,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             ),
             const SizedBox(height: 6),
 
-            // Time
             Row(
               children: [
                 Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
@@ -481,7 +481,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             ),
             const SizedBox(height: 6),
 
-            // Participants
             Row(
               children: [
                 Icon(Icons.people, size: 16, color: Colors.grey[600]),
@@ -506,7 +505,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             ),
             const SizedBox(height: 6),
 
-            // Points
             Row(
               children: [
                 Icon(Icons.star, size: 16, color: Colors.amber[700]),
@@ -522,7 +520,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               ],
             ),
 
-            // Description
             if (session.description != null &&
                 session.description!.isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -539,7 +536,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: session.isFull || _isRegistering
+                // Chỉ disable nút của session đang được đăng ký
+                onPressed: session.isFull || isThisSessionRegistering
                     ? null
                     : () => _registerSession(session),
                 style: ElevatedButton.styleFrom(
@@ -551,7 +549,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: _isRegistering
+                // Chỉ hiển thị loading cho session đang được đăng ký
+                child: isThisSessionRegistering
                     ? const SizedBox(
                         height: 20,
                         width: 20,

@@ -1,10 +1,10 @@
 import 'dart:convert';
+import 'package:diem_danh_sinh_vien/config/app_config.dart';
 import 'package:http/http.dart' as http;
-import 'api_service.dart';
-import 'local_notification_service.dart';
+import 'auth_service.dart';
 
 class EventService {
-  static const String baseUrl = ApiService.baseUrl;
+  static const String baseUrl = AppConfig.baseUrl;
 
   static Future<Map<String, dynamic>> getAllEvents({String? status}) async {
     try {
@@ -14,7 +14,7 @@ class EventService {
         uri = Uri.parse('$baseUrl/events?status=$status');
       }
 
-      final response = await http.get(uri, headers: ApiService.headers);
+      final response = await http.get(uri, headers: AuthService.headers);
 
       final data = jsonDecode(response.body);
 
@@ -31,12 +31,12 @@ class EventService {
     }
   }
 
-  // 2. Lấy chi tiết sự kiện
+  // Lấy chi tiết sự kiện
   static Future<Map<String, dynamic>> getEventDetail(int eventId) async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/events/$eventId'),
-        headers: ApiService.headers,
+        headers: AuthService.headers,
       );
 
       final data = jsonDecode(response.body);
@@ -54,6 +54,7 @@ class EventService {
     }
   }
 
+  // Đăng ký sự kiện
   static Future<Map<String, dynamic>> registerEvent({
     required int eventDetailId,
     bool? useCertificate,
@@ -62,7 +63,7 @@ class EventService {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/events/register'),
-        headers: await ApiService.headersWithAuth,
+        headers: await AuthService.headersWithAuth,
         body: jsonEncode({
           'eventDetailId': eventDetailId,
           if (useCertificate != null) 'useCertificate': useCertificate,
@@ -74,22 +75,9 @@ class EventService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201) {
-        // Đặt lịch local notification nếu có thông tin
-        if (data['data'] != null && data['data']['localNotification'] != null) {
-          final localNotif = data['data']['localNotification'];
-          try {
-            await LocalNotificationService().scheduleEventReminder(
-              id: localNotif['id'],
-              title: localNotif['title'],
-              body: localNotif['body'],
-              scheduledTime: DateTime.parse(localNotif['scheduledTime']),
-              payload: localNotif['payload'],
-            );
-            print('Đã đặt lịch nhắc nhở trước 1 ngày');
-          } catch (e) {
-            print('Error scheduling notification: $e');
-          }
-        }
+        // Thông báo nhắc nhở trước 1 ngày sẽ được xử lý bởi server
+        // Server sẽ gửi FCM notification vào đúng thời điểm
+        print('Đăng ký thành công. Server sẽ gửi thông báo nhắc nhở.');
 
         return {
           'success': true,
@@ -107,13 +95,14 @@ class EventService {
     }
   }
 
+  // Hủy đăng ký sự kiện
   static Future<Map<String, dynamic>> cancelRegistration(
     int registrationId,
   ) async {
     try {
       final response = await http.delete(
         Uri.parse('$baseUrl/events/register/$registrationId'),
-        headers: await ApiService.headersWithAuth,
+        headers: await AuthService.headersWithAuth,
       );
 
       final data = jsonDecode(response.body);
@@ -131,11 +120,12 @@ class EventService {
     }
   }
 
+  // Lấy danh sách sự kiện đã đăng ký
   static Future<Map<String, dynamic>> getMyRegistrations() async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/events/my-registrations'),
-        headers: await ApiService.headersWithAuth,
+        headers: await AuthService.headersWithAuth,
       );
 
       final data = jsonDecode(response.body);

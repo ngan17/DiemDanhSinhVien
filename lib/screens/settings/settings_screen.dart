@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
-import '../auth/login_screen.dart';
+import '../../services/auth_service.dart';
+import '../auth/role_selection_screen.dart'; 
+import 'change_password_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -25,8 +26,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     try {
-     
-      final profileResult = await ApiService.getProfile();
+      final profileResult = await AuthService.getProfile();
 
       if (profileResult['success'] == true) {
         final data = profileResult['data'];
@@ -37,8 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           });
         }
       } else {
-      
-        final localData = await ApiService.getUserData();
+        final localData = await AuthService.getUserData();
         if (mounted) {
           setState(() {
             userData = localData;
@@ -47,8 +46,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }
       }
     } catch (e) {
-     
-      final localData = await ApiService.getUserData();
+      final localData = await AuthService.getUserData();
       if (mounted) {
         setState(() {
           userData = localData;
@@ -86,9 +84,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0.5,
         automaticallyImplyLeading: false,
         title: const Text(
@@ -100,7 +97,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         centerTitle: true,
-      
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -194,8 +190,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ],
                         ),
-                     
-                        
                       ],
                     ),
                   ),
@@ -212,9 +206,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.lock_outline,
                     title: 'Đổi mật khẩu',
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Chức năng đang phát triển'),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ChangePasswordScreen(),
                         ),
                       );
                     },
@@ -480,8 +475,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _handleLogout() async {
-    Navigator.pop(context);
+    Navigator.pop(context); // Đóng dialog xác nhận
 
+    // Hiển thị loading
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -506,14 +502,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     try {
-      await ApiService.logout();
+      await AuthService.logout();
       await Future.delayed(const Duration(milliseconds: 800));
 
       if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
+      Navigator.of(context, rootNavigator: true).pop(); // Đóng loading dialog
 
+      // Quay về RoleSelectionScreen thay vì LoginScreen
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        MaterialPageRoute(builder: (context) => const RoleSelectionScreen()),
         (route) => false,
       );
 
@@ -521,18 +518,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Đã đăng xuất thành công'),
+              content: Text('Đăng xuất thành công!'),
               backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
             ),
           );
         }
       });
     } catch (e) {
       if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
+      Navigator.of(context, rootNavigator: true).pop(); // Đóng loading dialog
 
+      // Vẫn quay về RoleSelectionScreen ngay cả khi có lỗi
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        MaterialPageRoute(builder: (context) => const RoleSelectionScreen()),
         (route) => false,
       );
 
@@ -540,8 +539,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Đã đăng xuất (không kết nối server)'),
+              content: Text('Đã đăng xuất'),
               backgroundColor: Colors.orange,
+              duration: Duration(seconds: 2),
             ),
           );
         }

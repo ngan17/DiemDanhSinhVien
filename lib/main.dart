@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'screens/auth/splash_screen.dart';
-import 'screens/dashboard/dashboard_screen.dart';
-import 'services/local_notification_service.dart';
 import 'services/fcm_service.dart';
-import 'services/api_service.dart';
+import 'services/auth_service.dart';
+import 'screens/auth/splash_screen.dart';
+
+// GlobalKey để truy cập Navigator từ bất kỳ đâu
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,33 +13,40 @@ void main() async {
   // Initialize Firebase
   await Firebase.initializeApp();
 
-  // Initialize Local Notifications
-  await LocalNotificationService().initialize();
-
-  // Initialize FCM if user is logged in
-  final token = await ApiService.getToken();
-  if (token != null) {
-    await FCMService().initialize(token);
-  }
-
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    _initializeNotifications();
+  }
+
+  Future<void> _initializeNotifications() async {
+    // Get access token from storage
+    String? accessToken = await AuthService.getToken();
+
+    if (accessToken != null) {
+      await FCMService().initialize(accessToken, navigatorKey);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Student Training Score App',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primaryColor: const Color(0xFF1E90FF),
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E90FF)),
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-      ),
+      title: 'Điểm Danh Sinh Viên',
+      navigatorKey: navigatorKey,
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
       home: const SplashScreen(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }

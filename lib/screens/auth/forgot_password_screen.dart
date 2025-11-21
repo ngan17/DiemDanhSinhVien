@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -39,7 +39,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
     try {
-      final result = await ApiService.sendCode(
+      final result = await AuthService.sendCode(
         email: _emailController.text.trim(),
       );
 
@@ -107,7 +107,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
     try {
-      final result = await ApiService.verifyCode(
+      final result = await AuthService.verifyCode(
         email: _emailController.text.trim(),
         code: _codeController.text.trim(),
       );
@@ -176,7 +176,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
     try {
-      final result = await ApiService.resetPassword(
+      final result = await AuthService.resetPassword(
         email: _emailController.text.trim(),
         code: _codeController.text.trim(),
         newPassword: _newPasswordController.text,

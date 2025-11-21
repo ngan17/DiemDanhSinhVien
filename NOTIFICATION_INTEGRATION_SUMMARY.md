@@ -180,7 +180,7 @@ flutter run
 - [Flutter Local Notifications](https://pub.dev/packages/flutter_local_notifications)
 - [Timezone](https://pub.dev/packages/timezone)
 
-## 🎉 Hoàn thành!
+##  Hoàn thành!
 
 Hệ thống thông báo đã được tích hợp hoàn chỉnh. Bạn có thể:
 1. Nhận thông báo khi có sự kiện mới từ server (FCM)

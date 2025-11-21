@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
-import '../../services/notification_service.dart' as NotifService;
-import '../../services/api_service.dart';
-import '../auth/login_screen.dart';
+import '../../services/notification_service.dart';
+import '../events/event_detail_screen.dart';
 
 class NotificationScreen extends StatefulWidget {
-  const NotificationScreen({super.key});
+  const NotificationScreen({Key? key}) : super(key: key);
 
   @override
   State<NotificationScreen> createState() => _NotificationScreenState();
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  List<dynamic> notifications = [];
-  bool isLoading = true;
-  int currentPage = 1;
-  bool hasMore = true;
+  List<dynamic> _notifications = [];
+  bool _isLoading = true;
+  int _currentPage = 1;
+  bool _hasMore = true;
 
   @override
   void initState() {
@@ -23,165 +22,67 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Future<void> _loadNotifications() async {
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    try {
-      final result = await NotifService.NotificationService.getNotifications(
-        page: currentPage,
-        perPage: 20,
-      );
-
-      if (!mounted) return;
-
-      if (result['requireLogin'] == true) {
-        _handleSessionExpired();
-        return;
-      }
-
-      if (result['success'] == true) {
-        final data = result['data'];
-        setState(() {
-          notifications = data['data'];
-          hasMore = data['currentPage'] < data['lastPage'];
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          isLoading = false;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['message'] ?? 'Không thể tải thông báo'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  Future<void> _deleteNotification(int id, int index) async {
-    try {
-      final result = await NotifService.NotificationService.deleteNotification(
-        id,
-      );
-
-      if (!mounted) return;
-
-      if (result['requireLogin'] == true) {
-        _handleSessionExpired();
-        return;
-      }
-
-      if (result['success'] == true) {
-        setState(() {
-          notifications.removeAt(index);
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Đã xóa thông báo'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['message'] ?? 'Không thể xóa thông báo'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  void _handleSessionExpired() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.error_outline, color: Colors.orange),
-            SizedBox(width: 12),
-            Text('Phiên đã hết hạn'),
-          ],
-        ),
-        content: const Text(
-          'Phiên đăng nhập của bạn đã hết hạn. Vui lòng đăng nhập lại.',
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () async {
-              await ApiService.removeToken();
-              await ApiService.removeUserData();
-
-              if (!mounted) return;
-
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-                (route) => false,
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2196F3),
-            ),
-            child: const Text(
-              'Đăng nhập lại',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+    final result = await NotificationService.getNotifications(
+      page: _currentPage,
+      perPage: 20,
     );
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        if (result['success'] == true) {
+          _notifications = result['data'] ?? [];
+        }
+      });
+    }
+  }
+
+  Future<void> _markAsRead(int notificationId, int? eventId) async {
+    await NotificationService.markAsRead(notificationId);
+
+  
+    if (eventId != null && mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EventDetailScreen(eventId: eventId),
+        ),
+      ).then((_) => _loadNotifications()); 
+    }
+  }
+
+  Future<void> _deleteNotification(int notificationId) async {
+    final result = await NotificationService.deleteNotification(notificationId);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Đã xóa thông báo'),
+          backgroundColor: result['success'] == true
+              ? Colors.green
+              : Colors.red,
+        ),
+      );
+
+      if (result['success'] == true) {
+        _loadNotifications();
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        title: const Text(
-          'Thông báo',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
+        title: const Text('Thông báo'),
+        backgroundColor: const Color(0xFF1E90FF),
+        foregroundColor: Colors.white,
       ),
-      body: isLoading
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : notifications.isEmpty
+          : _notifications.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -202,84 +103,63 @@ class _NotificationScreenState extends State<NotificationScreen> {
           : RefreshIndicator(
               onRefresh: _loadNotifications,
               child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: notifications.length,
+                itemCount: _notifications.length,
+                padding: const EdgeInsets.all(8),
                 itemBuilder: (context, index) {
-                  final notif = notifications[index];
-                  return Dismissible(
-                    key: Key(notif['id'].toString()),
-                    direction: DismissDirection.endToStart,
-                    onDismissed: (direction) {
-                      _deleteNotification(notif['id'], index);
-                    },
-                    background: Container(
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.delete,
-                        color: Colors.white,
-                        size: 28,
-                      ),
+                  final notification = _notifications[index];
+                  final isRead = notification['isRead'] == 1;
+
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
                     ),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                    color: isRead ? Colors.white : Colors.blue[50],
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: isRead
+                            ? Colors.grey[300]
+                            : const Color(0xFF1E90FF),
+                        child: Icon(
+                          Icons.event,
+                          color: isRead ? Colors.grey[600] : Colors.white,
+                        ),
+                      ),
+                      title: Text(
+                        notification['title'] ?? '',
+                        style: TextStyle(
+                          fontWeight: isRead
+                              ? FontWeight.normal
+                              : FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 4),
+                          Text(
+                            notification['content'] ?? '',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _formatDate(notification['createAt']),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
                           ),
                         ],
                       ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(16),
-                        leading: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2196F3).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.notifications,
-                            color: Color(0xFF2196F3),
-                          ),
-                        ),
-                        title: Text(
-                          notif['title'] ?? '',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text(
-                              notif['content'] ?? '',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              notif['createAt'] ?? '',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                          ],
-                        ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        color: Colors.red,
+                        onPressed: () => _showDeleteDialog(notification['id']),
+                      ),
+                      onTap: () => _markAsRead(
+                        notification['id'],
+                        notification['eventId'],
                       ),
                     ),
                   );
@@ -287,5 +167,51 @@ class _NotificationScreenState extends State<NotificationScreen> {
               ),
             ),
     );
+  }
+
+  void _showDeleteDialog(int notificationId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa thông báo'),
+        content: const Text('Bạn có chắc chắn muốn xóa thông báo này?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteNotification(notificationId);
+            },
+            child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return '';
+    try {
+      final date = DateTime.parse(dateStr);
+      final now = DateTime.now();
+      final difference = now.difference(date);
+
+      if (difference.inMinutes < 1) {
+        return 'Vừa xong';
+      } else if (difference.inHours < 1) {
+        return '${difference.inMinutes} phút trước';
+      } else if (difference.inDays < 1) {
+        return '${difference.inHours} giờ trước';
+      } else if (difference.inDays < 7) {
+        return '${difference.inDays} ngày trước';
+      } else {
+        return '${date.day}/${date.month}/${date.year}';
+      }
+    } catch (e) {
+      return dateStr;
+    }
   }
 }
