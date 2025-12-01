@@ -1,29 +1,29 @@
 # Tổng kết tích hợp Thông báo
 
-## ✅ Đã hoàn thành
+##  Đã hoàn thành
 
 ### 1. Cài đặt Dependencies
-- ✅ firebase_core: ^2.24.2
-- ✅ firebase_messaging: ^14.7.9
-- ✅ flutter_local_notifications: ^16.3.0
-- ✅ timezone: ^0.9.2
+-  firebase_core: ^2.24.2
+-  firebase_messaging: ^14.7.9
+-  flutter_local_notifications: ^16.3.0
+-  timezone: ^0.9.2
 
 ### 2. Tạo Services
-- ✅ `lib/services/fcm_service.dart` - Xử lý Firebase Cloud Messaging
-- ✅ `lib/services/local_notification_service.dart` - Xử lý Local Notifications
-- ✅ `lib/services/notification_service.dart` - API lấy danh sách thông báo
+-  `lib/services/fcm_service.dart` - Xử lý Firebase Cloud Messaging
+-  `lib/services/local_notification_service.dart` - Xử lý Local Notifications
+-  `lib/services/notification_service.dart` - API lấy danh sách thông báo
 
 ### 3. Tạo Screens
-- ✅ `lib/screens/notifications/notification_screen.dart` - Màn hình hiển thị danh sách thông báo
+-  `lib/screens/notifications/notification_screen.dart` - Màn hình hiển thị danh sách thông báo
 
 ### 4. Cập nhật Files
-- ✅ `lib/main.dart` - Khởi tạo Firebase và Notifications
-- ✅ `lib/services/event_service.dart` - Thêm logic đặt lịch thông báo khi đăng ký sự kiện
-- ✅ `android/app/build.gradle.kts` - Thêm Google Services plugin
-- ✅ `android/build.gradle.kts` - Thêm Google Services classpath
+-  `lib/main.dart` - Khởi tạo Firebase và Notifications
+-  `lib/services/event_service.dart` - Thêm logic đặt lịch thông báo khi đăng ký sự kiện
+-  `android/app/build.gradle.kts` - Thêm Google Services plugin
+-  `android/build.gradle.kts` - Thêm Google Services classpath
 
 ### 5. Tài liệu
-- ✅ `FIREBASE_SETUP.md` - Hướng dẫn cấu hình Firebase
+-  `FIREBASE_SETUP.md` - Hướng dẫn cấu hình Firebase
 
 ## 📋 Các bước tiếp theo
 
@@ -116,24 +116,24 @@ User có thể:
 ## 🎯 Tính năng đã tích hợp
 
 ### FCM (Firebase Cloud Messaging)
-- ✅ Nhận thông báo khi app đang chạy (foreground)
-- ✅ Nhận thông báo khi app ở background
-- ✅ Nhận thông báo khi app đã đóng (terminated)
-- ✅ Tự động gửi FCM Token lên server
-- ✅ Xử lý navigation khi tap vào notification
+-  Nhận thông báo khi app đang chạy (foreground)
+-  Nhận thông báo khi app ở background
+-  Nhận thông báo khi app đã đóng (terminated)
+-  Tự động gửi FCM Token lên server
+-  Xử lý navigation khi tap vào notification
 
 ### Local Notifications
-- ✅ Đặt lịch thông báo trước 1 ngày
-- ✅ Hủy thông báo
-- ✅ Timezone support (Asia/Ho_Chi_Minh)
-- ✅ Custom notification channel
+-  Đặt lịch thông báo trước 1 ngày
+-  Hủy thông báo
+-  Timezone support (Asia/Ho_Chi_Minh)
+-  Custom notification channel
 
 ### Notification Screen
-- ✅ Hiển thị danh sách thông báo
-- ✅ Pull to refresh
-- ✅ Swipe to delete
-- ✅ Empty state
-- ✅ Error handling
+-  Hiển thị danh sách thông báo
+-  Pull to refresh
+-  Swipe to delete
+-  Empty state
+-  Error handling
 
 ## ⚠️ Lưu ý quan trọng
 

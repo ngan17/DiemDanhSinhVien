@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'package:diem_danh_sinh_vien/config/app_config.dart';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import '../config/app_config.dart';
 import 'auth_service.dart';
 
 class EventService {
@@ -139,6 +140,197 @@ class EventService {
         };
       }
     } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Kiểm tra điều kiện điểm danh
+  /// GET /api/events/attendance/check/{eventDetailId}
+  static Future<Map<String, dynamic>> checkAttendanceEligibility(
+    int eventDetailId,
+  ) async {
+    try {
+      print(' Checking attendance eligibility for event: $eventDetailId');
+
+      final token = await AuthService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Chưa đăng nhập'};
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/events/attendance/check/$eventDetailId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      print(' Check attendance status: ${response.statusCode}');
+      print(' Response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        // Backend trả về canAttend thay vì success
+        final canAttend = data['canAttend'] ?? false;
+
+        if (canAttend) {
+          // Có thể điểm danh
+          return {
+            'success': true,
+            'data': {
+              'canAttend': true,
+              'message': data['message'],
+              'attendanceMethods': data['attendanceMethods'],
+              'attendedMethods': data['attendedMethods'] ?? [],
+              'registrationId': data['registrationId'],
+              'currentSchedule': data['currentSchedule'],
+              'attendanceProgress': data['attendanceProgress'],
+              'allSchedules': data['allSchedules'],
+            },
+          };
+        } else {
+          // Không thể điểm danh
+          return {
+            'success': false,
+            'message': data['message'] ?? 'Không thể điểm danh',
+            'currentTime': data['currentTime'],
+            'validSchedules': data['validSchedules'],
+            'attendedTimes': data['attendedTimes'],
+            'totalTimes': data['totalTimes'],
+          };
+        }
+      } else {
+        final error = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message':
+              error['message'] ?? 'Không thể kiểm tra điều kiện điểm danh',
+        };
+      }
+    } catch (e) {
+      print(' Error checkAttendanceEligibility: $e');
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Điểm danh bằng Proof (chụp ảnh)
+  /// POST /api/events/attendance/proof
+  static Future<Map<String, dynamic>> attendByProof(
+    int registrationId,
+    String imagePath,
+  ) async {
+    try {
+      print(' Submitting attendance proof...');
+      print('   Registration ID: $registrationId');
+      print('   Image: $imagePath');
+
+      final token = await AuthService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Chưa đăng nhập'};
+      }
+
+      var uri = Uri.parse('$baseUrl/events/attendance/proof');
+      var request = http.MultipartRequest('POST', uri);
+
+      // Headers
+      request.headers['Authorization'] = 'Bearer $token';
+      request.headers['Accept'] = 'application/json';
+
+      // Fields
+      request.fields['registrationId'] = registrationId.toString();
+
+      // File
+      request.files.add(
+        await http.MultipartFile.fromPath('proofImage', imagePath),
+      );
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      print(' Attend status: ${response.statusCode}');
+      print(' Response: ${response.body}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Điểm danh thành công',
+          'data': data['data'],
+        };
+      } else {
+        final error = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': error['message'] ?? 'Điểm danh thất bại',
+          'currentTime': error['currentTime'],
+          'availableSchedules': error['availableSchedules'],
+          'method': error['method'],
+        };
+      }
+    } catch (e) {
+      print(' Error attendByProof: $e');
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Điểm danh bằng nhận diện khuôn mặt
+  /// POST /api/events/attendance/face
+  static Future<Map<String, dynamic>> attendByFace(
+    int registrationId,
+    String studentId,
+    double confidence,
+  ) async {
+    try {
+      print(' Face attendance...');
+      print('   Registration ID: $registrationId');
+      print('   Student ID: $studentId');
+      print('   Confidence: $confidence%');
+
+      final token = await AuthService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Chưa đăng nhập'};
+      }
+
+      final url = '$baseUrl/events/attendance/face';
+      print(' URL: $url');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'registrationId': registrationId,
+          'studentId': studentId,
+          'confidence': confidence,
+        }),
+      );
+
+      print(' Status: ${response.statusCode}');
+      print(' Response: ${response.body}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Điểm danh thành công',
+          'data': data['data'],
+        };
+      } else {
+        final error = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': error['message'] ?? 'Điểm danh thất bại',
+          'currentTime': error['currentTime'],
+          'availableSchedules': error['availableSchedules'],
+          'method': error['method'],
+        };
+      }
+    } catch (e) {
+      print(' Error attendByFace: $e');
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }

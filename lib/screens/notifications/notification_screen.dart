@@ -13,7 +13,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
   List<dynamic> _notifications = [];
   bool _isLoading = true;
   int _currentPage = 1;
-  bool _hasMore = true;
 
   @override
   void initState() {
@@ -36,39 +35,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
           _notifications = result['data'] ?? [];
         }
       });
-    }
-  }
-
-  Future<void> _markAsRead(int notificationId, int? eventId) async {
-    await NotificationService.markAsRead(notificationId);
-
-  
-    if (eventId != null && mounted) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => EventDetailScreen(eventId: eventId),
-        ),
-      ).then((_) => _loadNotifications()); 
-    }
-  }
-
-  Future<void> _deleteNotification(int notificationId) async {
-    final result = await NotificationService.deleteNotification(notificationId);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Đã xóa thông báo'),
-          backgroundColor: result['success'] == true
-              ? Colors.green
-              : Colors.red,
-        ),
-      );
-
-      if (result['success'] == true) {
-        _loadNotifications();
-      }
     }
   }
 
@@ -104,64 +70,123 @@ class _NotificationScreenState extends State<NotificationScreen> {
               onRefresh: _loadNotifications,
               child: ListView.builder(
                 itemCount: _notifications.length,
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 itemBuilder: (context, index) {
                   final notification = _notifications[index];
                   final isRead = notification['isRead'] == 1;
 
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    color: isRead ? Colors.white : Colors.blue[50],
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: isRead
-                            ? Colors.grey[300]
-                            : const Color(0xFF1E90FF),
-                        child: Icon(
-                          Icons.event,
-                          color: isRead ? Colors.grey[600] : Colors.white,
+                  return Column(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: isRead ? Colors.white : Colors.blue[50],
                         ),
-                      ),
-                      title: Text(
-                        notification['title'] ?? '',
-                        style: TextStyle(
-                          fontWeight: isRead
-                              ? FontWeight.normal
-                              : FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 4),
-                          Text(
-                            notification['content'] ?? '',
-                            maxLines: 2,
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          leading: Stack(
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E90FF),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.event_note,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+                              if (!isRead)
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          title: Text(
+                            notification['title'] ?? '',
+                            style: TextStyle(
+                              fontWeight: isRead
+                                  ? FontWeight.w500
+                                  : FontWeight.bold,
+                              fontSize: 15,
+                              color: Colors.black87,
+                            ),
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _formatDate(notification['createAt']),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 4),
+                              Text(
+                                notification['content'] ?? '',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[700],
+                                  height: 1.3,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
-                        ],
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    _formatDate(notification['createAt']),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 8),
+                              InkWell(
+                                onTap: () =>
+                                    _deleteNotification(notification['id']),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  child: const Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          onTap: () => _markAsRead(
+                            notification['id'],
+                            notification['eventId'],
+                          ),
+                        ),
                       ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        color: Colors.red,
-                        onPressed: () => _showDeleteDialog(notification['id']),
+                      const Divider(
+                        color: Colors.grey,
+                        thickness: 1,
+                        height: 1,
                       ),
-                      onTap: () => _markAsRead(
-                        notification['id'],
-                        notification['eventId'],
-                      ),
-                    ),
+                    ],
                   );
                 },
               ),
@@ -169,27 +194,33 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  void _showDeleteDialog(int notificationId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xóa thông báo'),
-        content: const Text('Bạn có chắc chắn muốn xóa thông báo này?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteNotification(notificationId);
-            },
-            child: const Text('Xóa', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
+  Future<void> _markAsRead(int notificationId, int? eventId) async {
+    await NotificationService.markAsRead(notificationId);
+    if (eventId != null && mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EventDetailScreen(eventId: eventId),
+        ),
+      ).then((_) => _loadNotifications());
+    }
+  }
+
+  Future<void> _deleteNotification(int notificationId) async {
+    final result = await NotificationService.deleteNotification(notificationId);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Đã xóa thông báo'),
+          backgroundColor: result['success'] == true
+              ? Colors.green
+              : Colors.red,
+        ),
+      );
+      if (result['success'] == true) {
+        _loadNotifications();
+      }
+    }
   }
 
   String _formatDate(String? dateStr) {

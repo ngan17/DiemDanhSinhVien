@@ -30,7 +30,8 @@ class AttendantService {
       rethrow;
     }
   }
-// Lấy chi tiết sự kiện
+
+  // Lấy chi tiết sự kiện
   static Future<Map<String, dynamic>> getEventDetail(int eventId) async {
     try {
       final response = await http.get(
@@ -52,7 +53,6 @@ class AttendantService {
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
-
 
   static Future<Map<String, dynamic>> attendByBarcode({
     required int eventDetailId,
@@ -89,9 +89,9 @@ class AttendantService {
           'session': data['session'],
           'attendanceId': data['attendanceId'],
           'attendTime': data['attendTime'],
+          'attendanceProgress': data['attendanceProgress'],
         };
       } else {
-        
         return {
           'success': false,
           'message': data['message'] ?? 'Điểm danh thất bại',

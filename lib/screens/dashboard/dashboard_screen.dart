@@ -3,12 +3,13 @@ import 'package:diem_danh_sinh_vien/screens/notifications/notification_screen.da
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../services/fcm_service.dart';
-import '../../main.dart'; 
+import '../../main.dart';
 
 import '../../models/event_model.dart';
 import '../../services/event_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
+import '../../utils/face_auth_helper.dart';
 import '../settings/settings_screen.dart';
 import '../events/event_list_screen.dart';
 import 'training_score_screen.dart';
@@ -29,24 +30,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? userRole;
   bool _isLoading = true;
   int _selectedIndex = 0;
-  int _unreadNotificationCount = 0; 
+  int _unreadNotificationCount = 0;
   @override
   void initState() {
     super.initState();
     _loadData();
-    _initializeFCM(); 
+    _initializeFCM();
     _loadUnreadNotificationCount();
+    _checkFaceRegistration();
   }
+
+  Future<void> _checkFaceRegistration() async {
+    // Đợi 500ms để màn hình load xong
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (!mounted) return;
+
+    await FaceAuthHelper.checkAndNavigateToFaceAuth(context);
+  }
+
   Future<void> _loadUnreadNotificationCount() async {
-    final result = await NotificationService.getNotifications(page: 1, perPage: 100);
-    
+    final result = await NotificationService.getNotifications(
+      page: 1,
+      perPage: 100,
+    );
+
     if (result['success'] == true && mounted) {
       final notifications = result['data'] as List;
       setState(() {
-        _unreadNotificationCount = notifications.where((n) => n['isRead'] == 0).length;
+        _unreadNotificationCount = notifications
+            .where((n) => n['isRead'] == 0)
+            .length;
       });
     }
   }
+
   Future<void> _initializeFCM() async {
     String? accessToken = await AuthService.getToken();
     if (accessToken != null) {
@@ -60,11 +78,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
 
     try {
-   
       final profileResult = await AuthService.getProfile();
 
       if (profileResult['success'] == true) {
-       
         final data = profileResult['data'];
         if (data != null) {
           final student = data['student'];
@@ -72,7 +88,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           print('user Info: $user');
           print('student Info: $student');
 
-          
           setState(() {
             userData = {'user': user, 'student': student};
             studentName = student?['studentName'];
@@ -82,7 +97,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       } else {
         print('Failed to get profile: ${profileResult['message']}');
-      
+
         final localData = await AuthService.getUserData();
         if (localData != null) {
           final student = localData['student'];
@@ -96,7 +111,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           });
         }
       }
-
 
       final eventsResult = await EventService.getAllEvents();
       final regsResult = await EventService.getMyRegistrations();
@@ -153,13 +167,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (index == 2) {
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => const TrainingScoreScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const TrainingScoreScreen()),
       );
-      return; 
+      return;
     }
-    
+
     setState(() {
       _selectedIndex = index;
     });
@@ -248,53 +260,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
               actions: [
-                  Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined),
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const NotificationScreen(),
+                Stack(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.notifications_outlined),
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const NotificationScreen(),
+                          ),
+                        );
+
+                        _loadUnreadNotificationCount();
+                      },
                     ),
-                  );
-                 
-                  _loadUnreadNotificationCount();
-                },
-              ),
-              if (_unreadNotificationCount > 0)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 18,
-                      minHeight: 18,
-                    ),
-                    child: Text(
-                      _unreadNotificationCount > 99 
-                          ? '99+' 
-                          : _unreadNotificationCount.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                    if (_unreadNotificationCount > 0)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Text(
+                            _unreadNotificationCount > 99
+                                ? '99+'
+                                : _unreadNotificationCount.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+                  ],
                 ),
-            ],
-          ),
-          const SizedBox(width: 8),
-        ],
-      )
+                const SizedBox(width: 8),
+              ],
+            )
           : null,
       body: _buildCurrentScreen(),
       bottomNavigationBar: BottomNavigationBar(
@@ -309,22 +321,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
             activeIcon: Icon(Icons.home),
-            label: 'Home',
+            label: 'Trang chủ',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.event_outlined),
             activeIcon: Icon(Icons.event),
-            label: 'Event',
+            label: 'Sự kiện',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.analytics_outlined),
             activeIcon: Icon(Icons.analytics),
-            label: 'Score',
+            label: 'Điểm rèn luyện',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
             activeIcon: Icon(Icons.settings),
-            label: 'Settings',
+            label: 'Cài đặt',
           ),
         ],
       ),

@@ -104,86 +104,90 @@ class EventSessionModel {
 
 class EventRegistrationModel {
   final int registrationId;
-  final String registerTime;
-  final String status;
-  final bool useCertificate;
-  final bool requireCertificate;
-  final int eventId;
+  final int eventDetailId;
   final String eventName;
   final String eventTypeName;
-  final int eventDetailId;
   final String session;
-  final int conductScore;
   final String location;
   final String creditDate;
-  final String? description;
+  final int conductScore;
+  final String registerTime;
+  final String status; //  Thêm trường này
+  final String? semesterName;
+  final int isAttendFace; //  Thêm
+  final int isAttendProof; //  Thêm
+  final int isAttendCamera; //  Thêm
+  final int isAttendBarcode; //  Thêm
 
   EventRegistrationModel({
     required this.registrationId,
-    required this.registerTime,
-    required this.status,
-    required this.useCertificate,
-    required this.requireCertificate,
-    required this.eventId,
+    required this.eventDetailId,
     required this.eventName,
     required this.eventTypeName,
-    required this.eventDetailId,
     required this.session,
-    required this.conductScore,
     required this.location,
     required this.creditDate,
-    this.description,
+    required this.conductScore,
+    required this.registerTime,
+    required this.status, //  Thêm
+    this.semesterName,
+    this.isAttendFace = 0, //  Thêm
+    this.isAttendProof = 0, //  Thêm
+    this.isAttendCamera = 0, //  Thêm
+    this.isAttendBarcode = 0, //  Thêm
   });
 
   factory EventRegistrationModel.fromJson(Map<String, dynamic> json) {
     return EventRegistrationModel(
-      registrationId: json['registrationId'],
-      registerTime: json['registerTime'],
-      status: json['status'],
-      useCertificate: json['useCertificate'] == 1,
-      requireCertificate: json['requireCertificate'] == 1,
-      eventId: json['eventId'],
-      eventName: json['eventName'],
-      eventTypeName: json['eventTypeName'],
-      eventDetailId: json['eventDetailId'],
-      session: json['session'],
-      conductScore: json['conductScore'],
-      location: json['location'],
-      creditDate: json['creditDate'],
-      description: json['description'],
+      registrationId: json['registrationId'] ?? 0,
+      eventDetailId: json['eventDetailId'] ?? 0,
+      eventName: json['eventName'] ?? '',
+      eventTypeName: json['eventTypeName'] ?? '',
+      session: json['session'] ?? '',
+      location: json['location'] ?? '',
+      creditDate: json['creditDate'] ?? '',
+      conductScore: json['conductScore'] ?? 0,
+      registerTime: json['registerTime'] ?? '',
+      status: json['status']?.toString() ?? 'pending', //  Thêm
+      semesterName: json['semesterName'],
+      isAttendFace: json['isAttendFace'] ?? 0, //  Thêm
+      isAttendProof: json['isAttendProof'] ?? 0, //  Thêm
+      isAttendCamera: json['isAttendCamera'] ?? 0, //  Thêm
+      isAttendBarcode: json['isAttendBarcode'] ?? 0, //  Thêm
     );
   }
 
-  String get statusText {
-    switch (status) {
-      case 'pending':
-        return 'Chờ duyệt';
-      case 'approved':
-        return 'Đã duyệt';
-      case 'rejected':
-        return 'Từ chối';
-      case 'attended':
-        return 'Đã tham gia';
-      default:
-        return status;
+  String get formattedCreditDate {
+    try {
+      final date = DateTime.parse(creditDate);
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} - ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return creditDate;
     }
   }
 
   String get formattedRegisterTime {
     try {
       final date = DateTime.parse(registerTime);
-      return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     } catch (e) {
       return registerTime;
     }
   }
 
-  String get formattedCreditDate {
-    try {
-      final date = DateTime.parse(creditDate);
-      return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return creditDate;
+  //  Thêm getter cho statusText
+  String get statusText {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return 'Đã duyệt';
+      case 'pending':
+        return 'Chờ duyệt';
+      case 'rejected':
+        return 'Từ chối';
+      case 'attended':
+        return 'Đã điểm danh';
+      default:
+        return status;
     }
   }
 }

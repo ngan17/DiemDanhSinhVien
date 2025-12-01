@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../models/event_model.dart';
 import '../../services/event_service.dart';
 
@@ -12,6 +14,7 @@ class MyEventsScreen extends StatefulWidget {
 class _MyEventsScreenState extends State<MyEventsScreen> {
   List<EventRegistrationModel> _registrations = [];
   bool _isLoading = true;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -20,27 +23,32 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
   }
 
   Future<void> _loadMyRegistrations() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
+      print(' Loading my registrations...');
       final result = await EventService.getMyRegistrations();
+      print(' API Response: ${result['success']}');
+      print(' Data count: ${result['data']?.length ?? 0}');
 
       if (!mounted) return;
 
       if (result['success'] == true) {
         final List<dynamic> regsJson = result['data'] ?? [];
+        print(' Parsing ${regsJson.length} registrations...');
+
         setState(() {
-          _registrations = regsJson
-              .map((json) => EventRegistrationModel.fromJson(json))
-              .toList();
+          _registrations = regsJson.map((json) {
+            print(' Event: ${json['eventName']}, Status: ${json['status']}');
+            return EventRegistrationModel.fromJson(json);
+          }).toList();
           _isLoading = false;
         });
+
+        print(' Total registrations loaded: ${_registrations.length}');
       } else {
-        setState(() {
-          _isLoading = false;
-        });
+        print(' Failed to load: ${result['message']}');
+        setState(() => _isLoading = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -53,10 +61,9 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
         }
       }
     } catch (e) {
+      print(' Error loading registrations: $e');
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
         );
@@ -65,7 +72,6 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
   }
 
   Future<void> _cancelRegistration(EventRegistrationModel registration) async {
-
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -92,7 +98,6 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
     if (confirmed != true) return;
 
-  
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -106,7 +111,6 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
       if (!mounted) return;
 
-      
       Navigator.pop(context);
 
       if (result['success'] == true) {
@@ -116,7 +120,6 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
             backgroundColor: Colors.green,
           ),
         );
-   
         _loadMyRegistrations();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -128,7 +131,6 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       }
     } catch (e) {
       if (mounted) {
-  
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
@@ -137,11 +139,566 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
     }
   }
 
+  Future<void> _handleAttendance(EventRegistrationModel registration) async {
+    // Kiểm tra có phương thức điểm danh nào được bật không
+    if (registration.isAttendFace == 0 &&
+        registration.isAttendProof == 0 &&
+        registration.isAttendCamera == 0 &&
+        registration.isAttendBarcode == 0) {
+      _showErrorDialog('Sự kiện chưa được cấu hình phương thức điểm danh');
+      return;
+    }
 
+    // Hiển thị loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
 
+    try {
+      // Kiểm tra điều kiện điểm danh (thời gian, số lần, ...)
+      final checkResult = await EventService.checkAttendanceEligibility(
+        registration.eventDetailId,
+      );
+
+      if (!mounted) return;
+
+      Navigator.pop(context); // Đóng loading
+
+      print('📦 Check result: $checkResult');
+
+      if (checkResult['success'] != true) {
+        _showErrorDialog(
+          checkResult['message'] ?? 'Không thể kiểm tra điều kiện điểm danh',
+        );
+        return;
+      }
+
+      final data = checkResult['data'];
+      final canAttend = data['canAttend'] ?? false;
+
+      if (!canAttend) {
+        _showErrorDialog(data['message'] ?? 'Không thể điểm danh');
+        return;
+      }
+
+      // Hiển thị dialog chọn phương thức
+      _showAttendanceMethodDialog(registration, data);
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        _showErrorDialog('Lỗi: $e');
+      }
+    }
+  }
+
+  void _showAttendanceMethodDialog(
+    EventRegistrationModel registration,
+    Map<String, dynamic> data,
+  ) {
+    final progress = data['attendanceProgress'] ?? {};
+    final attendedMethods = List<String>.from(data['attendedMethods'] ?? []);
+    final attendanceMethods = data['attendanceMethods'] ?? {};
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Chọn phương thức điểm danh'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Tiến độ: ${progress['current']}/${progress['total']} lần',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            if (attendedMethods.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Đã điểm danh: ${attendedMethods.join(", ")}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+
+            // Chỉ hiển thị các phương thức CHƯA điểm danh
+            if (attendanceMethods['proof'] == 1 &&
+                !attendedMethods.contains('proof'))
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Colors.blue),
+                title: const Text('Chụp ảnh minh chứng'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _attendByProof(registration);
+                },
+              ),
+            if (attendanceMethods['face'] == 1 &&
+                !attendedMethods.contains('face'))
+              ListTile(
+                leading: const Icon(Icons.face, color: Colors.green),
+                title: const Text('Nhận diện khuôn mặt'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _attendByFace(registration);
+                },
+              ),
+            if (attendanceMethods['camera'] == 1 &&
+                !attendedMethods.contains('camera'))
+              ListTile(
+                leading: const Icon(
+                  Icons.qr_code_scanner,
+                  color: Colors.orange,
+                ),
+                title: const Text('Quét camera'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showErrorDialog('Tính năng đang phát triển');
+                },
+              ),
+            if (attendanceMethods['barcode'] == 1 &&
+                !attendedMethods.contains('barcode'))
+              ListTile(
+                leading: const Icon(Icons.qr_code, color: Colors.purple),
+                title: const Text('Quét mã Barcode'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showErrorDialog('Tính năng đang phát triển');
+                },
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _attendByProof(EventRegistrationModel registration) async {
+    try {
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (photo == null) {
+        print(' User cancelled camera');
+        return;
+      }
+
+      print(' Photo captured: ${photo.path}');
+
+      if (!mounted) return;
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Xác nhận điểm danh'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.file(
+                File(photo.path),
+                height: 200,
+                width: 200,
+                fit: BoxFit.cover,
+              ),
+              const SizedBox(height: 16),
+              const Text('Xác nhận sử dụng ảnh này để điểm danh?'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Chụp lại'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: const Text(
+                'Xác nhận',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) {
+        _attendByProof(registration);
+        return;
+      }
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final result = await EventService.attendByProof(
+        registration.registrationId,
+        photo.path,
+      );
+
+      if (!mounted) return;
+
+      Navigator.pop(context);
+
+      if (result['success'] == true) {
+        final data = result['data'];
+        final progress = data['attendanceProgress'] ?? {};
+        final currentSchedule = data['currentSchedule'];
+
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 32),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Điểm danh thành công!',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  result['message'] ?? 'Điểm danh thành công!',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule,
+                            color: Colors.blue[700],
+                            size: 18,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Thời gian:',
+                            style: TextStyle(
+                              color: Colors.blue[700],
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${data['attendTime']}',
+                        style: TextStyle(
+                          color: Colors.blue[900],
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (currentSchedule != null) ...[
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              color: Colors.green[700],
+                              size: 18,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Khung giờ ${currentSchedule['index']}:',
+                              style: TextStyle(
+                                color: Colors.green[700],
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${currentSchedule['start']} - ${currentSchedule['end']}',
+                          style: TextStyle(
+                            color: Colors.green[900],
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Tiến độ: ${progress['current']}/${progress['total']} lần',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                if (progress['remaining'] > 0) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Còn lại: ${progress['remaining']} lần',
+                    style: TextStyle(color: Colors.orange[700]),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _loadMyRegistrations();
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        // Kiểm tra xem có thông tin khung giờ không
+        if (result['availableSchedules'] != null) {
+          _showScheduleErrorDialog(
+            result['message'] ?? 'Không thể điểm danh',
+            result['currentTime'],
+            result['availableSchedules'],
+            result['method'],
+          );
+        } else {
+          _showErrorDialog(result['message'] ?? 'Điểm danh thất bại');
+        }
+      }
+    } catch (e) {
+      print(' Error attendByProof: $e');
+      if (mounted) {
+        _showErrorDialog('Lỗi: $e');
+      }
+    }
+  }
+
+  Future<void> _attendByFace(EventRegistrationModel registration) async {
+    try {
+      // TODO: Implement face recognition
+      _showErrorDialog('Tính năng nhận diện khuôn mặt đang phát triển');
+    } catch (e) {
+      print(' Error attendByFace: $e');
+      if (mounted) {
+        _showErrorDialog('Lỗi: $e');
+      }
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.error, color: Colors.red, size: 32),
+            SizedBox(width: 12),
+            Text('Thông báo'),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showScheduleErrorDialog(
+    String message,
+    String? currentTime,
+    List<dynamic>? schedules,
+    String? method,
+  ) {
+    String methodName = '';
+    if (method == 'proof') {
+      methodName = 'minh chứng';
+    } else if (method == 'face') {
+      methodName = 'khuôn mặt';
+    } else if (method == 'barcode') {
+      methodName = 'barcode';
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.orange[700], size: 32),
+            const SizedBox(width: 12),
+            const Expanded(child: Text('Thông báo điểm danh')),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                message,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (currentTime != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.schedule, color: Colors.blue[700], size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Giờ hiện tại: $currentTime',
+                        style: TextStyle(
+                          color: Colors.blue[900],
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (methodName.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.purple[50],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.purple[700],
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Phương thức: $methodName',
+                          style: TextStyle(
+                            color: Colors.purple[900],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (schedules != null && schedules.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'Khung giờ điểm danh:',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                ...schedules.map((schedule) {
+                  final index = schedule['index'] ?? 0;
+                  final start = schedule['start'] ?? '';
+                  final end = schedule['end'] ?? '';
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: Colors.green[700],
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$index',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            '$start - $end',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.green[900],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Color _getStatusColor(String status) {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'pending':
         return Colors.orange;
       case 'approved':
@@ -157,6 +714,10 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print(
+      ' Build called - isLoading: $_isLoading, registrations: ${_registrations.length}',
+    );
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -184,6 +745,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                 padding: const EdgeInsets.all(16),
                 itemCount: _registrations.length,
                 itemBuilder: (context, index) {
+                  print('🎨 Building card for index: $index');
                   final registration = _registrations[index];
                   return _buildRegistrationCard(registration);
                 },
@@ -317,7 +879,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                 Icon(Icons.star, size: 16, color: Colors.amber[700]),
                 const SizedBox(width: 8),
                 Text(
-                  '+${registration.conductScore} điểm rèn luyện',
+                  '+${registration.conductScore} điểm',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.amber[700],
@@ -340,12 +902,24 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
               ],
             ),
 
-            // Registered Time
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                // Cancel Button (only for pending status)
-                if (registration.status == 'pending')
+            // Action Buttons
+            const SizedBox(height: 12),
+            if (registration.status == 'approved') ...[
+              // Chỉ approved mới hiện nút điểm danh
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _handleAttendance(registration),
+                      icon: const Icon(Icons.check_circle, size: 18),
+                      label: const Text('Điểm danh'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => _cancelRegistration(registration),
@@ -357,10 +931,23 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                       ),
                     ),
                   ),
-
-              
-              ],
-            ),
+                ],
+              ),
+            ] else if (registration.status == 'pending') ...[
+              // Pending chỉ hiện nút hủy
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _cancelRegistration(registration),
+                  icon: const Icon(Icons.cancel, size: 18),
+                  label: const Text('Hủy đăng ký'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

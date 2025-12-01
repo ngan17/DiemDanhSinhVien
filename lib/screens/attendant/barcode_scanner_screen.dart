@@ -21,13 +21,16 @@ class BarcodeScannerScreen extends StatefulWidget {
 
 class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   final MobileScannerController _cameraController = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
+    detectionSpeed: DetectionSpeed.normal,
     facing: CameraFacing.back,
+    formats: [BarcodeFormat.qrCode, BarcodeFormat.code128, BarcodeFormat.ean13],
   );
   bool _isProcessing = false;
   bool _flashOn = false;
   int _successCount = 0;
-
+  DateTime? _lastScanTime;
+  String? _lastScannedCode; // Lưu mã vừa quét
+  
   @override
   void dispose() {
     _cameraController.dispose();
@@ -38,10 +41,8 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   Future<void> _playBeep({bool isSuccess = true}) async {
     try {
       if (isSuccess) {
-        // Âm thanh thành công - beep ngắn
         await SystemSound.play(SystemSoundType.click);
       } else {
-        // Âm thanh thất bại - beep dài hơn
         await SystemSound.play(SystemSoundType.alert);
       }
     } catch (e) {
@@ -50,9 +51,27 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   }
 
   Future<void> _handleBarcode(String barcode) async {
-    if (_isProcessing) return;
+    // ← THÊM: Kiểm tra nếu đang xử lý thì bỏ qua
+    if (_isProcessing) {
+      return;
+    }
 
-    setState(() => _isProcessing = true);
+    // ← THÊM: Debounce - nếu quét cùng mã trong 1.5 giây thì chỉ hiện thông báo ngắn
+    final now = DateTime.now();
+    if (_lastScannedCode == barcode && 
+        _lastScanTime != null && 
+        now.difference(_lastScanTime!) < const Duration(milliseconds: 1500)) {
+      // Chỉ hiện SnackBar ngắn, không block quét
+      _showQuickMessage('⚠️ Vừa quét mã này rồi', isWarning: true);
+      await _playBeep(isSuccess: false);
+      return;
+    }
+
+    setState(() {
+      _isProcessing = true;
+      _lastScannedCode = barcode;
+      _lastScanTime = now;
+    });
 
     // Phát âm thanh beep ngay khi quét được
     await _playBeep(isSuccess: true);
@@ -70,6 +89,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
           _successCount++;
           setState(() {});
 
+          // ← Hiện SnackBar thành công (giữ nguyên)
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
@@ -109,17 +129,17 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
 
           await Future.delayed(const Duration(milliseconds: 500));
         } else {
-          // Phát âm thanh lỗi
+          // ← SỬA: Chỉ hiện SnackBar thay vì Dialog
           await _playBeep(isSuccess: false);
-          _showErrorDialog(result);
-          await Future.delayed(const Duration(seconds: 2));
+          _showErrorSnackBar(result);
+          await Future.delayed(const Duration(milliseconds: 800));
         }
       }
     } catch (e) {
       if (mounted) {
         await _playBeep(isSuccess: false);
-        _showErrorDialog({'success': false, 'message': 'Lỗi: $e'});
-        await Future.delayed(const Duration(seconds: 2));
+        _showErrorSnackBar({'success': false, 'message': 'Lỗi: $e'});
+        await Future.delayed(const Duration(milliseconds: 800));
       }
     } finally {
       if (mounted) {
@@ -128,112 +148,87 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     }
   }
 
-  void _showErrorDialog(Map<String, dynamic> result) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: EdgeInsets.zero,
-        content: Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.error, color: Colors.red, size: 56),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Điểm danh thất bại!',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (result['studentName'] != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.badge, size: 18, color: Colors.red),
-                          const SizedBox(width: 6),
-                          Text(
-                            'MSSV: ${result['studentId']}',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.person, size: 18, color: Colors.red),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              result['studentName'],
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.red,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              Text(
-                result['message'] ?? 'Có lỗi xảy ra',
-                style: const TextStyle(fontSize: 14, color: Colors.black87),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Đóng',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+  // ← THÊM: Hiện thông báo nhanh không chặn quét
+  void _showQuickMessage(String message, {bool isWarning = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isWarning ? Icons.warning : Icons.info,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontSize: 14),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
+        backgroundColor: isWarning ? Colors.orange : Colors.blue,
+        duration: const Duration(milliseconds: 1000),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(bottom: 100, left: 16, right: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+
+  // ← THÊM: Hiện lỗi bằng SnackBar thay vì Dialog
+  void _showErrorSnackBar(Map<String, dynamic> result) {
+    final studentInfo = result['studentName'] != null
+        ? '${result['studentName']} (${result['studentId']})'
+        : '';
+    
+    final message = result['message'] ?? 'Có lỗi xảy ra';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Điểm danh thất bại!',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (studentInfo.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                studentInfo,
+                style: const TextStyle(fontSize: 13),
+              ),
+            ],
+            const SizedBox(height: 4),
+            Text(
+              message,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        duration: const Duration(milliseconds: 2500),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(bottom: 100, left: 16, right: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
       ),
     );
   }

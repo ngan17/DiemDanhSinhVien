@@ -6,7 +6,6 @@ import 'auth_service.dart';
 class NotificationService {
   static const String baseUrl = AppConfig.baseUrl;
 
-
   static Future<Map<String, dynamic>> getNotifications({
     int page = 1,
     int perPage = 10,
@@ -20,8 +19,20 @@ class NotificationService {
       });
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {'success': true, 'data': data['data']};
+        final jsonData = jsonDecode(response.body);
+        final data = jsonData['data']; 
+
+        return {
+          'success': true,
+          'data': data['data'], 
+          'currentPage': data['current_page'],
+          'lastPage': data['last_page'],
+          'total': data['total'],
+          'perPage': data['per_page'],
+          'hasMore':
+              data['current_page'] <
+              data['last_page'], 
+        };
       } else if (response.statusCode == 401) {
         return {
           'success': false,
@@ -39,7 +50,6 @@ class NotificationService {
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
-
 
   static Future<Map<String, dynamic>> deleteNotification(int id) async {
     try {
@@ -70,7 +80,6 @@ class NotificationService {
     }
   }
 
-
   static Future<Map<String, dynamic>> markAsRead(int id) async {
     try {
       final response = await AuthService.makeAuthenticatedRequest(() async {
@@ -100,7 +109,6 @@ class NotificationService {
     }
   }
 
- 
   static Future<Map<String, dynamic>> saveFcmToken(
     String token,
     String accessToken,

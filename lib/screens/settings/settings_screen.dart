@@ -198,8 +198,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                   // Settings Options
                   _buildSettingsItem(
-                    icon: Icons.edit,
-                    title: 'Chỉnh sửa hồ sơ',
+                    icon:Icons.person_outline,
+                    title: 'Thông tin sinh viên',
                     onTap: _showEditProfileDialog,
                   ),
                   _buildSettingsItem(
