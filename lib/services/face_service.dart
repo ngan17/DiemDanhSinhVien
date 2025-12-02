@@ -4,19 +4,14 @@ import '../config/app_config.dart';
 import 'auth_service.dart';
 
 class FaceService {
-
-  static const String pythonBaseUrl = "http://192.168.132.185:8001";
-
-
+  static const String pythonBaseUrl = AppConfig.pythonBaseUrl;
   static const String laravelBaseUrl = AppConfig.baseUrl;
-
 
   Future<bool> checkStatus(String token) async {
     try {
       print(' Checking face registration status...');
       print(' URL: $laravelBaseUrl/face-embeddings/check');
 
- 
       final response = await http.get(
         Uri.parse('$laravelBaseUrl/face-embeddings/check'),
         headers: {
@@ -31,7 +26,6 @@ class FaceService {
       if (response.statusCode == 200) {
         var data = jsonDecode(response.body);
 
-       
         bool isRegistered = data['registered'] == true;
 
         print(' Registration status: $isRegistered');
@@ -44,7 +38,6 @@ class FaceService {
       return false;
     }
   }
-
 
   Future<Map<String, dynamic>> detectFace(String imagePath) async {
     try {
@@ -80,7 +73,6 @@ class FaceService {
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
-
 
   Future<Map<String, dynamic>> registerFace(
     String imagePath,
@@ -147,7 +139,6 @@ class FaceService {
     }
   }
 
-
   Future<Map<String, dynamic>> verifyFace(String imagePath) async {
     try {
       print(' Verifying face...');
@@ -168,7 +159,6 @@ class FaceService {
       if (response.statusCode == 200) {
         var data = jsonDecode(response.body);
 
-        
         return {
           'data': data,
           'success': data['success'] ?? false,
@@ -188,7 +178,6 @@ class FaceService {
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
-
 
   Future<Map<String, dynamic>?> getFaceEmbedding(
     String studentId,
@@ -213,7 +202,6 @@ class FaceService {
     }
   }
 
-
   Future<bool> deleteFaceEmbedding(String studentId, String token) async {
     try {
       final response = await http.delete(
@@ -230,7 +218,6 @@ class FaceService {
       return false;
     }
   }
-
 
   Future<List<dynamic>?> getAllFaceEmbeddings(String token) async {
     try {
@@ -252,7 +239,6 @@ class FaceService {
     }
   }
 
-
   Future<Map<String, dynamic>?> getFaceStats(String token) async {
     try {
       final response = await http.get(
@@ -272,7 +258,6 @@ class FaceService {
       return null;
     }
   }
-
 
   Future<List<dynamic>?> getUnregisteredStudents(String token) async {
     try {

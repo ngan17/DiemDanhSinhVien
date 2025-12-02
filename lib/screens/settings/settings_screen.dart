@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
-import '../auth/role_selection_screen.dart'; 
+import '../auth/role_selection_screen.dart';
 import 'change_password_screen.dart';
+import 'barcode_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -97,6 +98,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_2, color: Color(0xFF2196F3)),
+            onPressed: _showBarcodeScreen,
+            tooltip: 'Tạo barcode',
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -198,7 +206,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                   // Settings Options
                   _buildSettingsItem(
-                    icon:Icons.person_outline,
+                    icon: Icons.person_outline,
                     title: 'Thông tin sinh viên',
                     onTap: _showEditProfileDialog,
                   ),
@@ -320,6 +328,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   )
                 : null),
         onTap: onTap,
+      ),
+    );
+  }
+
+  void _showBarcodeScreen() {
+    if (_userCode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không tìm thấy mã sinh viên'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            BarcodeScreen(studentId: _userCode, studentName: _userName),
       ),
     );
   }

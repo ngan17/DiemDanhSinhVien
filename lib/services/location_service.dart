@@ -1,17 +1,15 @@
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
-  // static const double targetLat = 10.807350;
-  // static const double targetLng = 106.6286126;
-  static const double targetLat = 10.749342;
-  static const double targetLng = 106.625630;
+  static const double targetLat = 10.807350;
+  static const double targetLng = 106.6286126;
+  // static const double targetLat = 10.749342;
+  // static const double targetLng = 106.625630;
 
   // Bán kính cho phép (mét)
   static const double allowedRadius = 200.0;
 
   static Future<bool> checkLocation() async {
-   
-
     bool serviceEnabled;
     LocationPermission permission;
 
@@ -33,7 +31,6 @@ class LocationService {
       throw 'Quyền vị trí bị chặn vĩnh viễn. Vào Cài đặt máy để mở lại.';
     }
 
-   
     print(" Đang lấy vị trí GPS...");
     Position currentPosition = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.bestForNavigation,
@@ -45,7 +42,6 @@ class LocationService {
     print("    Altitude: ${currentPosition.altitude}m");
     print("    Speed: ${currentPosition.speed}m/s");
     print("    isMocked: ${currentPosition.isMocked}");
-
 
     if (currentPosition.isMocked) {
       print(" PHÁT HIỆN GIAN LẬN: isMocked = true");
