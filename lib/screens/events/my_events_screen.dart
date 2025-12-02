@@ -707,6 +707,8 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
         return Colors.red;
       case 'attended':
         return Colors.green;
+      case 'canceled':
+        return Colors.grey;
       default:
         return Colors.grey;
     }
@@ -904,7 +906,28 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
             // Action Buttons
             const SizedBox(height: 12),
-            if (registration.status == 'approved') ...[
+            if (registration.status == 'canceled') ...[
+              // Không hiển thị nút gì với status canceled
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Đăng ký đã được hủy',
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else if (registration.status == 'approved') ...[
               // Chỉ approved mới hiện nút điểm danh
               Row(
                 children: [

@@ -186,6 +186,8 @@ class EventRegistrationModel {
         return 'Từ chối';
       case 'attended':
         return 'Đã điểm danh';
+      case 'canceled':
+        return 'Đã hủy';
       default:
         return status;
     }

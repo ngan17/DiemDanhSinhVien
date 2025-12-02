@@ -38,37 +38,25 @@ class BarcodeScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Info Card
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(16),
+              // Logo
+              Image.asset('assets/logo.png', width: 120, height: 120),
+
+              const SizedBox(height: 16),
+
+              // Student Info
+              Text(
+                studentName,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
                 ),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.qr_code_scanner,
-                      size: 48,
-                      color: Colors.blue[700],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      studentName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'MSSV: $studentId',
-                      style: TextStyle(fontSize: 15, color: Colors.grey[700]),
-                    ),
-                  ],
-                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'MSSV: $studentId',
+                style: TextStyle(fontSize: 15, color: Colors.grey[700]),
               ),
 
               const SizedBox(height: 32),

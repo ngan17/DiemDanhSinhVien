@@ -124,7 +124,12 @@ class _EventListScreenState extends State<EventListScreen>
         setState(() {
           if (isHistory) {
             _historyRegistrations = allRegs
-                .where((r) => r.status == 'attended' || r.status == 'rejected')
+                .where(
+                  (r) =>
+                      r.status == 'attended' ||
+                      r.status == 'rejected' ||
+                      r.status == 'canceled',
+                )
                 .toList();
           } else {
             _myRegistrations = allRegs
@@ -1460,6 +1465,8 @@ class _EventListScreenState extends State<EventListScreen>
         return Colors.green;
       case 'rejected':
         return Colors.red;
+      case 'canceled':
+        return Colors.grey;
       default:
         return Colors.grey;
     }
