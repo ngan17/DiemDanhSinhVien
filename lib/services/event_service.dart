@@ -121,18 +121,27 @@ class EventService {
     }
   }
 
-  // Lấy danh sách sự kiện đã đăng ký
-  static Future<Map<String, dynamic>> getMyRegistrations() async {
+  // Lấy danh sách sự kiện đã đăng ký với phân trang
+  static Future<Map<String, dynamic>> getMyRegistrations({
+    int page = 1,
+    int perPage = 10,
+  }) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/events/my-registrations'),
+        Uri.parse(
+          '$baseUrl/events/my-registrations?page=$page&per_page=$perPage',
+        ),
         headers: await AuthService.headersWithAuth,
       );
 
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        return {'success': true, 'data': data['data'], 'total': data['total']};
+        return {
+          'success': true,
+          'data': data['data'],
+          'pagination': data['pagination'],
+        };
       } else {
         return {
           'success': false,

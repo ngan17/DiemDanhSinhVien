@@ -14,38 +14,69 @@ class MyEventsScreen extends StatefulWidget {
 class _MyEventsScreenState extends State<MyEventsScreen> {
   List<EventRegistrationModel> _registrations = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
   final ImagePicker _picker = ImagePicker();
+
+  int _currentPage = 1;
+  int _totalPages = 1;
+  final int _perPage = 10;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _loadMyRegistrations();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoadingMore && _currentPage < _totalPages) {
+        _loadMoreRegistrations();
+      }
+    }
   }
 
   Future<void> _loadMyRegistrations() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _currentPage = 1;
+    });
 
     try {
       print(' Loading my registrations...');
-      final result = await EventService.getMyRegistrations();
+      final result = await EventService.getMyRegistrations(
+        page: _currentPage,
+        perPage: _perPage,
+      );
       print(' API Response: ${result['success']}');
-      print(' Data count: ${result['data']?.length ?? 0}');
 
       if (!mounted) return;
 
       if (result['success'] == true) {
         final List<dynamic> regsJson = result['data'] ?? [];
+        final pagination = result['pagination'] ?? {};
+
         print(' Parsing ${regsJson.length} registrations...');
+        print(' Pagination: $pagination');
 
         setState(() {
           _registrations = regsJson.map((json) {
-            print(' Event: ${json['eventName']}, Status: ${json['status']}');
             return EventRegistrationModel.fromJson(json);
           }).toList();
+          _totalPages = pagination['last_page'] ?? 1;
           _isLoading = false;
         });
 
         print(' Total registrations loaded: ${_registrations.length}');
+        print(' Current page: $_currentPage / $_totalPages');
       } else {
         print(' Failed to load: ${result['message']}');
         setState(() => _isLoading = false);
@@ -67,6 +98,47 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
         );
+      }
+    }
+  }
+
+  Future<void> _loadMoreRegistrations() async {
+    if (_isLoadingMore || _currentPage >= _totalPages) return;
+
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final result = await EventService.getMyRegistrations(
+        page: _currentPage + 1,
+        perPage: _perPage,
+      );
+
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        final List<dynamic> regsJson = result['data'] ?? [];
+        final pagination = result['pagination'] ?? {};
+
+        setState(() {
+          _registrations.addAll(
+            regsJson
+                .map((json) => EventRegistrationModel.fromJson(json))
+                .toList(),
+          );
+          _currentPage++;
+          _totalPages = pagination['last_page'] ?? 1;
+          _isLoadingMore = false;
+        });
+
+        print(' Loaded more: ${regsJson.length} items');
+        print(' Current page: $_currentPage / $_totalPages');
+      } else {
+        setState(() => _isLoadingMore = false);
+      }
+    } catch (e) {
+      print(' Error loading more: $e');
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
       }
     }
   }
@@ -744,10 +816,18 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
           : RefreshIndicator(
               onRefresh: _loadMyRegistrations,
               child: ListView.builder(
+                controller: _scrollController,
                 padding: const EdgeInsets.all(16),
-                itemCount: _registrations.length,
+                itemCount: _registrations.length + (_isLoadingMore ? 1 : 0),
                 itemBuilder: (context, index) {
-                  print('🎨 Building card for index: $index');
+                  if (index == _registrations.length) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+                  }
                   final registration = _registrations[index];
                   return _buildRegistrationCard(registration);
                 },

@@ -319,7 +319,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(
-            labelText: 'Email', 
+            labelText: 'Email',
             prefixIcon: const Icon(Icons.email_outlined),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
@@ -482,7 +482,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           textAlign: TextAlign.center,
         ),
-      
+
         const SizedBox(height: 24),
         TextFormField(
           controller: _newPasswordController,
@@ -634,6 +634,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         // Form Card
                         Card(
                           elevation: 10,
+
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),

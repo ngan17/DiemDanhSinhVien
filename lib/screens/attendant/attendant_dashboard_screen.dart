@@ -3,12 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../services/fcm_service.dart';
 import '../../main.dart';
+import '../../services/notification_service.dart';
 
 import '../../services/auth_service.dart';
-import '../../services/notification_service.dart';
 import '../../services/attendant_service.dart';
 import '../settings/settings_screen.dart';
-import 'attendant_events_screen.dart';
 import 'attendant_event_detail_screen.dart';
 
 class AttendantDashboardScreen extends StatefulWidget {
@@ -22,8 +21,8 @@ class AttendantDashboardScreen extends StatefulWidget {
 class _AttendantDashboardScreenState extends State<AttendantDashboardScreen> {
   List<Map<String, dynamic>> upcomingEvents = [];
   Map<String, dynamic>? userData;
-  String? attendantName;
-  String? attendantId;
+  String? lecturerName;
+  String? lecturerId;
   String? userRole;
   bool _isLoading = true;
   int _selectedIndex = 0;
@@ -76,8 +75,8 @@ class _AttendantDashboardScreenState extends State<AttendantDashboardScreen> {
 
           setState(() {
             userData = data;
-            attendantName = user?['username'];
-            attendantId = user?['id']?.toString();
+            lecturerName = user?['username'];
+            lecturerId = user?['id']?.toString();
             userRole = user?['role'];
           });
         }
@@ -89,19 +88,19 @@ class _AttendantDashboardScreenState extends State<AttendantDashboardScreen> {
 
           setState(() {
             userData = localData;
-            attendantName = user?['username'];
-            attendantId = user?['id']?.toString();
+            lecturerName = user?['username'];
+            lecturerId = user?['id']?.toString();
             userRole = user?['role'];
           });
         }
       }
 
-      // Get upcoming events for attendant
-      final events = await AttendantService.getEvents(status: 'upcoming');
+      // Get all events for attendant
+      final events = await AttendantService.getEvents();
 
       if (mounted) {
         setState(() {
-          upcomingEvents = events.take(3).toList();
+          upcomingEvents = events;
           _isLoading = false;
         });
       }
@@ -120,7 +119,7 @@ class _AttendantDashboardScreenState extends State<AttendantDashboardScreen> {
     }
 
     // Save FCM token
-    if (attendantId != null) {
+    if (lecturerId != null) {
       String? accessToken = await AuthService.getToken();
       String? fcmToken = await FirebaseMessaging.instance.getToken();
       if (accessToken != null && fcmToken != null) {
@@ -140,8 +139,6 @@ class _AttendantDashboardScreenState extends State<AttendantDashboardScreen> {
       case 0:
         return _buildHomeScreen();
       case 1:
-        return const AttendantEventsScreen();
-      case 2:
         return const SettingsScreen();
       default:
         return _buildHomeScreen();
@@ -160,8 +157,6 @@ class _AttendantDashboardScreenState extends State<AttendantDashboardScreen> {
         child: Column(
           children: [
             const SizedBox(height: 16),
-            _buildFeatureCard(),
-            const SizedBox(height: 24),
             _buildUpcomingEvents(),
             const SizedBox(height: 24),
           ],
@@ -197,7 +192,7 @@ class _AttendantDashboardScreenState extends State<AttendantDashboardScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Xin chào, ${attendantName ?? 'Cán bộ'}',
+                          'Xin chào, ${lecturerName ?? ''}',
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -218,9 +213,9 @@ class _AttendantDashboardScreenState extends State<AttendantDashboardScreen> {
                   ),
                 ],
               )
-            : Text(
-                _selectedIndex == 1 ? 'Hỗ trợ điểm danh' : 'Cài đặt',
-                style: const TextStyle(
+            : const Text(
+                'Cài đặt',
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: Colors.black87,
@@ -289,93 +284,11 @@ class _AttendantDashboardScreenState extends State<AttendantDashboardScreen> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.qr_code_scanner_outlined),
-            activeIcon: Icon(Icons.qr_code_scanner),
-            label: 'Điểm danh',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
             activeIcon: Icon(Icons.settings),
             label: 'Settings',
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildFeatureCard() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedIndex = 1;
-          });
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          width: double.infinity,
-          height: 140,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.green.withValues(alpha: 0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.qr_code_scanner,
-                  size: 48,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 20),
-              const Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Hỗ trợ điểm danh',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Quét mã QR để điểm danh cho sinh viên',
-                      style: TextStyle(fontSize: 14, color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.arrow_forward_ios,
-                color: Colors.white,
-                size: 24,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -386,26 +299,13 @@ class _AttendantDashboardScreenState extends State<AttendantDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Sự kiện sắp diễn ra',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _selectedIndex = 1;
-                  });
-                },
-                child: const Text('Xem tất cả'),
-              ),
-            ],
+          const Text(
+            'Danh sách sự kiện',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
           ),
           const SizedBox(height: 16),
           if (upcomingEvents.isEmpty)
@@ -445,10 +345,8 @@ class _AttendantDashboardScreenState extends State<AttendantDashboardScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AttendantEventDetailScreen(
-                eventId: event['id'],
-               
-              ),
+              builder: (context) =>
+                  AttendantEventDetailScreen(eventId: event['id']),
             ),
           );
         },
@@ -479,10 +377,29 @@ class _AttendantDashboardScreenState extends State<AttendantDashboardScreen> {
                     ),
                   ),
                   const Spacer(),
-                  Icon(
-                    Icons.qr_code_scanner,
-                    color: Colors.grey[600],
-                    size: 20,
+                  // Nút quét barcode trực tiếp
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              AttendantEventDetailScreen(eventId: event['id']),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.qr_code_scanner, size: 18),
+                    label: const Text('Quét', style: TextStyle(fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                   ),
                 ],
               ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/auth_service.dart';
 import '../auth/role_selection_screen.dart';
 import 'change_password_screen.dart';
@@ -11,14 +13,42 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen>
+    with WidgetsBindingObserver {
   Map<String, dynamic>? userData;
   bool _isLoading = true;
+  bool _notificationsEnabled = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadUserData();
+    _loadNotificationStatus();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Kiểm tra lại quyền khi quay lại app
+      _loadNotificationStatus();
+    }
+  }
+
+  Future<void> _loadNotificationStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final status = await Permission.notification.status;
+
+    setState(() {
+      _notificationsEnabled =
+          status.isGranted && (prefs.getBool('notifications_enabled') ?? true);
+    });
   }
 
   Future<void> _loadUserData() async {
@@ -226,14 +256,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.notifications_outlined,
                     title: 'Cài đặt thông báo',
                     trailing: Switch(
-                      value: true,
-                      onChanged: (value) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Chức năng đang phát triển'),
-                          ),
-                        );
-                      },
+                      value: _notificationsEnabled,
+                      onChanged: _handleNotificationToggle,
                       activeColor: const Color(0xFF4CAF50),
                     ),
                     onTap: null,
@@ -328,6 +352,114 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   )
                 : null),
         onTap: onTap,
+      ),
+    );
+  }
+
+  Future<void> _handleNotificationToggle(bool value) async {
+    // Kiểm tra trạng thái quyền hiện tại
+    final status = await Permission.notification.status;
+
+    if (value) {
+      // Muốn bật thông báo
+      if (!status.isGranted) {
+        // Nếu quyền chưa được cấp hoặc bị tắt trong Settings
+        _showPermissionDialog();
+        return;
+      }
+
+      // Quyền đã được cấp, lưu trạng thái
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('notifications_enabled', true);
+
+      setState(() {
+        _notificationsEnabled = true;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã bật thông báo'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } else {
+      // Muốn tắt thông báo
+      _showTurnOffDialog();
+    }
+  }
+
+  void _showTurnOffDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.notifications_off, color: Colors.orange),
+            SizedBox(width: 12),
+            Text('Tắt thông báo'),
+          ],
+        ),
+        content: const Text(
+          'Bạn có chắc chắn muốn tắt thông báo?\n\nĐể tắt hoàn toàn, vui lòng vào Cài đặt hệ thống.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              openAppSettings();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text(
+              'Mở Cài đặt',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.settings, color: Color(0xFF2196F3)),
+            SizedBox(width: 12),
+            Text('Quyền thông báo'),
+          ],
+        ),
+        content: const Text(
+          'Bạn đã từ chối quyền thông báo. Vui lòng vào Cài đặt hệ thống để bật quyền thông báo cho ứng dụng.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              openAppSettings();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2196F3),
+            ),
+            child: const Text(
+              'Mở Cài đặt',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }

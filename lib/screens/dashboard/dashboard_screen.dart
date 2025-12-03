@@ -113,7 +113,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
 
       final eventsResult = await EventService.getAllEvents();
-      final regsResult = await EventService.getMyRegistrations();
+     // final regsResult = await EventService.getMyRegistrations();
 
       if (mounted) {
         setState(() {
@@ -129,13 +129,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 .toList();
           }
 
-          if (regsResult['success'] == true) {
-            final List<dynamic> regsJson = regsResult['data'] ?? [];
-            myRegistrations = regsJson
-                .map((json) => EventRegistrationModel.fromJson(json))
-                .toList();
-          }
-
+     
           _isLoading = false;
         });
       }
@@ -153,13 +147,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
 
-    if (studentId != null) {
-      String? accessToken = await AuthService.getToken();
-      String? fcmToken = await FirebaseMessaging.instance.getToken();
-      if (accessToken != null && fcmToken != null) {
-        await NotificationService.saveFcmToken(fcmToken, accessToken);
-      }
-    }
+   
   }
 
   void _onItemTapped(int index) {

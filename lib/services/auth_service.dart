@@ -144,7 +144,7 @@ class AuthService {
       } else if (response.statusCode == 404) {
         return {
           'success': false,
-          'message': 'Email không tồn tại trong hệ thống',
+          'message': 'Email không tồn tại',
         };
       } else {
         try {
