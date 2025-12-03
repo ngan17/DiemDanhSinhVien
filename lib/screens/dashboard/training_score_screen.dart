@@ -79,23 +79,6 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: const Text(
-          'Điểm rèn luyện',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(

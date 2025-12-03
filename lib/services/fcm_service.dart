@@ -48,15 +48,15 @@ class FCMService {
       await _updateFCMToken(token, accessToken);
     }
 
-    // Listen to token refresh
+
     _fcm.onTokenRefresh.listen((newToken) {
       _updateFCMToken(newToken, accessToken);
     });
 
-    // Background message handler
+    
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    // Foreground message handler
+
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       if (message.notification != null) {
         _showLocalNotification(
@@ -67,13 +67,12 @@ class FCMService {
       }
     });
 
-    // Message opened from background
+
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
      
       _handleNotificationTap(message.data);
     });
 
-    // Message opened from terminated state
     RemoteMessage? initialMessage = await _fcm.getInitialMessage();
     if (initialMessage != null) {
     
@@ -103,7 +102,6 @@ class FCMService {
       },
     );
 
-    // Create Android notification channel
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
       'high_importance_channel',
       'Thông báo quan trọng',
@@ -139,7 +137,7 @@ class FCMService {
     }
   }
 
-  // Hiển thị notification khi app đang mở (Foreground)
+
   Future<void> _showLocalNotification(
     String title,
     String body,

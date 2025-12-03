@@ -163,15 +163,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _onItemTapped(int index) {
-    // Nếu nhấn vào tab Score (index 2), push màn hình mới
-    if (index == 2) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const TrainingScoreScreen()),
-      );
-      return;
-    }
-
     setState(() {
       _selectedIndex = index;
     });
@@ -183,6 +174,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return _buildHomeScreen();
       case 1:
         return const EventListScreen();
+      case 2:
+        return const TrainingScoreScreen();
       case 3:
         return const SettingsScreen();
       default:
@@ -312,6 +305,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(width: 8),
                 ],
               )
+            : _selectedIndex == 2
+            ? AppBar(
+                backgroundColor: Colors.white,
+                elevation: 0.5,
+                automaticallyImplyLeading: false,
+                title: const Text(
+                  'Điểm rèn luyện',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                centerTitle: true,
+              )
             : null,
         body: _buildCurrentScreen(),
         bottomNavigationBar: BottomNavigationBar(
@@ -373,13 +381,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: Icons.bar_chart,
               color: const Color(0xFF66BB6A),
               onTap: () {
-                // Push sang màn hình mới thay vì chuyển tab
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const TrainingScoreScreen(),
-                  ),
-                );
+                setState(() {
+                  _selectedIndex = 2;
+                });
               },
             ),
           ),
