@@ -11,12 +11,17 @@
     <application
         android:label="diem_danh_sinh_vien"
         android:name="${applicationName}"
-        
         android:icon="@mipmap/ic_launcher">
-            <!-- Thêm meta-data cho Firebase -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="high_importance_channel" />
+            <!-- THÊM 2 DÒNG NÀY: Icon và màu cho notification -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@android:color/holo_blue_light" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

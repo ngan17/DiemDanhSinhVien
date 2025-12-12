@@ -5,6 +5,7 @@ class EventModel {
   final String endDate;
   final String? description;
   final String eventTypeName;
+  final String? image;
 
   EventModel({
     required this.id,
@@ -13,6 +14,7 @@ class EventModel {
     required this.endDate,
     this.description,
     required this.eventTypeName,
+    this.image,
   });
 
   factory EventModel.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class EventModel {
       endDate: json['endDate'],
       description: json['description'],
       eventTypeName: json['eventTypeName'],
+      image: json['image'],
     );
   }
 
@@ -194,6 +197,10 @@ class EventRegistrationModel {
         return 'Đã điểm danh';
       case 'student_canceled':
         return 'Đã hủy';
+      case 'unattended':
+        return 'Vắng mặt';
+      case 'scored':
+        return 'Đã điểm danh';
       default:
         return status;
     }

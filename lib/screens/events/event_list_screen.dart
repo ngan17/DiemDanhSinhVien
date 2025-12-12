@@ -128,7 +128,9 @@ class _EventListScreenState extends State<EventListScreen>
                   (r) =>
                       r.status == 'attended' ||
                       r.status == 'canceled' ||
-                      r.status == 'student_canceled',
+                      r.status == 'student_canceled' ||
+                      r.status == 'unattended' ||
+                      r.status == 'scored',
                 )
                 .toList();
           } else {
@@ -244,7 +246,7 @@ class _EventListScreenState extends State<EventListScreen>
   /// Xử lý điểm danh
   Future<void> _handleAttendance(EventRegistrationModel registration) async {
     print(' Handle attendance for: ${registration.eventName}');
-    print('   Event Detail ID: ${registration.eventDetailId}');
+    print('  Event Detail ID: ${registration.eventDetailId}');
 
     // Hiển thị loading
     showDialog(
@@ -1602,6 +1604,10 @@ class _EventListScreenState extends State<EventListScreen>
         return Colors.red;
       case 'student_canceled':
         return Colors.grey;
+      case 'unattended':
+        return Colors.red.shade700;
+      case 'scored':
+        return Colors.green;
       default:
         return Colors.grey;
     }

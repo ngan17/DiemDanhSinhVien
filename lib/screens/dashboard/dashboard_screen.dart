@@ -10,6 +10,7 @@ import '../../services/event_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
 import '../../utils/face_auth_helper.dart';
+import '../../config/app_config.dart';
 import '../settings/settings_screen.dart';
 import '../events/event_list_screen.dart';
 import 'training_score_screen.dart';
@@ -31,6 +32,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = true;
   int _selectedIndex = 0;
   int _unreadNotificationCount = 0;
+
+  // Pagination
+  int _currentPage = 1;
+  int _totalPages = 1;
+  bool _isLoadingMore = false;
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -38,6 +46,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _initializeFCM();
     _loadUnreadNotificationCount();
     _checkFaceRegistration();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoadingMore && _currentPage < _totalPages) {
+        _loadMoreEvents();
+      }
+    }
   }
 
   Future<void> _checkFaceRegistration() async {
@@ -69,6 +93,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String? accessToken = await AuthService.getToken();
     if (accessToken != null) {
       await FCMService().initialize(accessToken, navigatorKey);
+    }
+  }
+
+  Future<void> _loadEvents({required int page, bool isRefresh = false}) async {
+    try {
+      final eventsResult = await EventService.getAllEvents();
+
+      if (eventsResult['success'] == true && mounted) {
+        final List<dynamic> eventsJson = eventsResult['data'] ?? [];
+        final allEvents = eventsJson
+            .map((json) => EventModel.fromJson(json))
+            .where((event) => !event.isEnded)
+            .toList();
+
+        final pagination = eventsResult['pagination'];
+
+        setState(() {
+          if (isRefresh) {
+            upcomingEvents = allEvents;
+            _currentPage = 1;
+          } else {
+            upcomingEvents.addAll(allEvents);
+          }
+
+          if (pagination != null) {
+            _totalPages = pagination['last_page'] ?? 1;
+          }
+        });
+      }
+    } catch (e) {
+      print('Error loading events: $e');
+    }
+  }
+
+  Future<void> _loadMoreEvents() async {
+    if (_isLoadingMore) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    await _loadEvents(page: _currentPage + 1);
+
+    if (mounted) {
+      setState(() {
+        _currentPage++;
+        _isLoadingMore = false;
+      });
     }
   }
 
@@ -112,24 +184,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       }
 
-      final eventsResult = await EventService.getAllEvents();
-     // final regsResult = await EventService.getMyRegistrations();
+      await _loadEvents(page: 1, isRefresh: true);
 
       if (mounted) {
         setState(() {
-          if (eventsResult['success'] == true) {
-            final List<dynamic> eventsJson = eventsResult['data'] ?? [];
-            final allEvents = eventsJson
-                .map((json) => EventModel.fromJson(json))
-                .toList();
-
-            upcomingEvents = allEvents
-                .where((event) => !event.isEnded)
-                .take(3)
-                .toList();
-          }
-
-     
           _isLoading = false;
         });
       }
@@ -146,8 +204,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         );
       }
     }
-
-   
   }
 
   void _onItemTapped(int index) {
@@ -179,6 +235,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return RefreshIndicator(
       onRefresh: _loadData,
       child: SingleChildScrollView(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
           children: [
@@ -186,6 +243,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _buildFeatureCards(),
             const SizedBox(height: 24),
             _buildUpcomingEvents(),
+            if (_isLoadingMore)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
             const SizedBox(height: 24),
           ],
         ),
@@ -458,58 +520,108 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         );
       },
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF4CAF50).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    event.status,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF4CAF50),
-                      fontWeight: FontWeight.w500,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        color: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4CAF50).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        event.status,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF4CAF50),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    Text(
+                      event.eventName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            event.formattedDateRange,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              event.eventName,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    event.formattedDateRange,
-                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+              if (event.image != null && event.image!.isNotEmpty) ...[
+                const SizedBox(width: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    '${AppConfig.baseUrl.replaceAll('/api', '')}${event.image}',
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: 80,
+                        height: 80,
+                        color: Colors.grey[300],
+                        child: Icon(Icons.event, color: Colors.grey),
+                      );
+                    },
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        width: 80,
+                        height: 80,
+                        color: Colors.grey[300],
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                : null,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

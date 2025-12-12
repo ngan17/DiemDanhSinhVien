@@ -798,8 +798,12 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
         return Colors.red;
       case 'attended':
         return Colors.green;
+      case 'scored':
+        return Colors.green;
       case 'student_canceled':
         return Colors.grey;
+      case 'unattended':
+        return Colors.red.shade700;
       default:
         return Colors.grey;
     }
@@ -864,33 +868,14 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () {
-          print('\n' + '🔔' * 30);
-          print('🔔 CARD TAPPED!');
-          print('🔔 Event Name: ${registration.eventName}');
-          print(
-            '🔔 registration.eventId = ${registration.eventId} (type: ${registration.eventId.runtimeType})',
-          );
-          print(
-            '🔔 registration.eventDetailId = ${registration.eventDetailId} (type: ${registration.eventDetailId.runtimeType})',
-          );
-          print(
-            '🔔 registration.registrationId = ${registration.registrationId}',
-          );
-
+   
           final eventIdToPass = registration.eventId;
-          print('🔔 eventIdToPass variable = $eventIdToPass');
-          print(
-            '🔔 About to navigate to EventDetailScreen with eventId: $eventIdToPass',
-          );
-          print('🔔' * 30 + '\n');
 
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) {
-                print(
-                  '🚀 Building EventDetailScreen with eventId: $eventIdToPass',
-                );
+            
                 return EventDetailScreen(eventId: eventIdToPass);
               },
             ),
@@ -902,7 +887,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Status Badge & Event Type
+            
               Row(
                 children: [
                   Container(
@@ -1113,6 +1098,36 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
                     ),
+                  ),
+                ),
+              ] else if (registration.status == 'unattended') ...[
+                // unattended - vắng mặt
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    border: Border.all(color: Colors.red.shade200),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.event_busy,
+                        size: 16,
+                        color: Colors.red.shade700,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Bạn đã vắng mặt sự kiện này',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.red.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

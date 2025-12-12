@@ -48,14 +48,11 @@ class FCMService {
       await _updateFCMToken(token, accessToken);
     }
 
-
     _fcm.onTokenRefresh.listen((newToken) {
       _updateFCMToken(newToken, accessToken);
     });
 
-    
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       if (message.notification != null) {
@@ -67,22 +64,19 @@ class FCMService {
       }
     });
 
-
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-     
       _handleNotificationTap(message.data);
     });
 
     RemoteMessage? initialMessage = await _fcm.getInitialMessage();
     if (initialMessage != null) {
-    
       pendingNotificationData = initialMessage.data;
     }
   }
 
   Future<void> _initializeLocalNotifications() async {
     const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@drawable/ic_notification');
 
     const InitializationSettings settings = InitializationSettings(
       android: androidSettings,
@@ -137,13 +131,23 @@ class FCMService {
     }
   }
 
-
   Future<void> _showLocalNotification(
     String title,
     String body,
     Map<String, dynamic> data,
   ) async {
-    const AndroidNotificationDetails androidDetails =
+    final Person person = Person(
+      name: title,
+      icon: DrawableResourceAndroidIcon('@mipmap/ic_launcher'),
+    );
+
+    final MessagingStyleInformation messagingStyle = MessagingStyleInformation(
+      person,
+      conversationTitle: title,
+      messages: [Message(body, DateTime.now(), person)],
+    );
+
+    final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
           'high_importance_channel',
           'Thông báo quan trọng',
@@ -153,10 +157,11 @@ class FCMService {
           showWhen: true,
           enableVibration: true,
           playSound: true,
-          icon: '@mipmap/ic_launcher',
+          icon: '@drawable/ic_notification',
+          styleInformation: messagingStyle,
         );
 
-    const NotificationDetails notificationDetails = NotificationDetails(
+    final NotificationDetails notificationDetails = NotificationDetails(
       android: androidDetails,
     );
 
@@ -223,7 +228,6 @@ class FCMService {
     }
   }
 
-  
   static void processPendingNotification() {
     if (pendingNotificationData != null &&
         navigatorKey?.currentContext != null) {
