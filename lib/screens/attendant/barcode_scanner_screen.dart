@@ -62,7 +62,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
         _lastScanTime != null && 
         now.difference(_lastScanTime!) < const Duration(milliseconds: 1500)) {
       // Chỉ hiện SnackBar ngắn, không block quét
-      _showQuickMessage('⚠️ Vừa quét mã này rồi', isWarning: true);
+      _showQuickMessage(' Vừa quét mã này rồi', isWarning: true);
       await _playBeep(isSuccess: false);
       return;
     }

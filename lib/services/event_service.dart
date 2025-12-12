@@ -35,10 +35,16 @@ class EventService {
   // Lấy chi tiết sự kiện
   static Future<Map<String, dynamic>> getEventDetail(int eventId) async {
     try {
+      print(' Gọi API getEventDetail với eventId: $eventId');
+      print(' URL: $baseUrl/events/$eventId');
+
       final response = await http.get(
         Uri.parse('$baseUrl/events/$eventId'),
-        headers: AuthService.headers,
+        headers: await AuthService.headersWithAuth,
       );
+
+      print(' Status code: ${response.statusCode}');
+      print(' Response body: ${response.body}');
 
       final data = jsonDecode(response.body);
 
@@ -51,6 +57,7 @@ class EventService {
         };
       }
     } catch (e) {
+      print(' Lỗi getEventDetail: $e');
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
@@ -101,10 +108,15 @@ class EventService {
     int registrationId,
   ) async {
     try {
+      print(' Canceling registration: $registrationId');
+
       final response = await http.delete(
         Uri.parse('$baseUrl/events/register/$registrationId'),
         headers: await AuthService.headersWithAuth,
       );
+
+      print(' Cancel response status: ${response.statusCode}');
+      print(' Cancel response body: ${response.body}');
 
       final data = jsonDecode(response.body);
 
@@ -117,6 +129,7 @@ class EventService {
         };
       }
     } catch (e) {
+      print(' Cancel error: $e');
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
@@ -180,18 +193,53 @@ class EventService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        // Backend trả về canAttend thay vì success
         final canAttend = data['canAttend'] ?? false;
 
         if (canAttend) {
-          // Có thể điểm danh
+          final methods = data['attendanceMethods'] ?? {};
+
+          final convertedMethods = {
+            'face': methods['camera_student'] ?? 0,
+            'proof': methods['proof'] ?? 0,
+            'barcode': methods['barcode'] ?? 0,
+            'camera_IOT': methods['camera_IOT'] ?? 0,
+          };
+
+          final currentSchedule = data['currentSchedule'] ?? {};
+          final allMethods = (currentSchedule['methods'] as Map?) ?? {};
+          final availableMethods = methods;
+
+          final attendedMethods = <String>[];
+
+          if (allMethods['camera_student'] == 1) {
+            if (!availableMethods.containsKey('camera_student') ||
+                availableMethods['camera_student'] == 0) {
+              attendedMethods.add('face');
+            }
+          }
+          if (allMethods['proof'] == 1) {
+            if (!availableMethods.containsKey('proof') ||
+                availableMethods['proof'] == 0) {
+              attendedMethods.add('proof');
+            }
+          }
+          if (allMethods['barcode'] == 1) {
+            if (!availableMethods.containsKey('barcode') ||
+                availableMethods['barcode'] == 0) {
+              attendedMethods.add('barcode');
+            }
+          }
+
+          // KHÔNG kiểm tra camera_IOT vì nó không bao giờ có trong attendanceMethods
+          // (chỉ attendant mới điểm danh được, không phải sinh viên)
+
           return {
             'success': true,
             'data': {
               'canAttend': true,
               'message': data['message'],
-              'attendanceMethods': data['attendanceMethods'],
-              'attendedMethods': data['attendedMethods'] ?? [],
+              'attendanceMethods': convertedMethods,
+              'attendedMethods': attendedMethods,
               'registrationId': data['registrationId'],
               'currentSchedule': data['currentSchedule'],
               'attendanceProgress': data['attendanceProgress'],
@@ -207,6 +255,7 @@ class EventService {
             'validSchedules': data['validSchedules'],
             'attendedTimes': data['attendedTimes'],
             'totalTimes': data['totalTimes'],
+            'attendedRecords': data['attendedRecords'],
           };
         }
       } else {
@@ -262,10 +311,17 @@ class EventService {
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        final responseData = data['data'] ?? {};
+
+        // Backend trả về status: 'attended' (chờ admin duyệt vì có proof)
         return {
           'success': true,
-          'message': data['message'] ?? 'Điểm danh thành công',
-          'data': data['data'],
+          'message':
+              data['message'] ??
+              'Gửi minh chứng thành công, chờ admin duyệt để cộng điểm',
+          'data': responseData,
+          'status': responseData['status'] ?? 'attended',
+          'attendanceProgress': responseData['attendanceProgress'],
         };
       } else {
         final error = jsonDecode(response.body);
@@ -289,12 +345,14 @@ class EventService {
     int registrationId,
     String studentId,
     double confidence,
+    String faceImagePath,
   ) async {
     try {
       print(' Face attendance...');
       print('   Registration ID: $registrationId');
       print('   Student ID: $studentId');
       print('   Confidence: $confidence%');
+      print('   Face image: $faceImagePath');
 
       final token = await AuthService.getToken();
       if (token == null) {
@@ -304,29 +362,44 @@ class EventService {
       final url = '$baseUrl/events/attendance/face';
       print(' URL: $url');
 
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'registrationId': registrationId,
-          'studentId': studentId,
-          'confidence': confidence,
-        }),
+      var uri = Uri.parse(url);
+      var request = http.MultipartRequest('POST', uri);
+
+      request.headers['Authorization'] = 'Bearer $token';
+      request.headers['Accept'] = 'application/json';
+
+      request.fields['registrationId'] = registrationId.toString();
+      request.fields['studentId'] = studentId;
+      request.fields['confidence'] = confidence.toString();
+
+      request.files.add(
+        await http.MultipartFile.fromPath('faceImage', faceImagePath),
       );
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
 
       print(' Status: ${response.statusCode}');
       print(' Response: ${response.body}');
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        final responseData = data['data'] ?? {};
+        final conductScoreAdded = responseData['conductScoreAdded'] ?? 0;
+
+        final status = conductScoreAdded > 0 ? 'scored' : 'attended';
+
         return {
-          'success': true,
-          'message': data['message'] ?? 'Điểm danh thành công',
-          'data': data['data'],
+          'success': data['success'] ?? true,
+          'message':
+              data['message'] ??
+              (conductScoreAdded > 0
+                  ? 'Điểm danh thành công và đã cộng điểm'
+                  : 'Điểm danh thành công, chờ admin duyệt'),
+          'data': responseData,
+          'status': status,
+          'conductScoreAdded': conductScoreAdded,
+          'attendanceProgress': responseData['attendanceProgress'],
         };
       } else {
         final error = jsonDecode(response.body);

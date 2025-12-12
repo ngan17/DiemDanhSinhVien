@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/event_model.dart';
 import '../../services/event_service.dart';
+import 'event_detail_screen.dart';
 
 class MyEventsScreen extends StatefulWidget {
   const MyEventsScreen({super.key});
@@ -69,7 +70,28 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
         setState(() {
           _registrations = regsJson.map((json) {
-            return EventRegistrationModel.fromJson(json);
+            print('\n' + '=' * 60);
+            print('📥 RAW JSON DATA:');
+            print(
+              '   eventId (from JSON): ${json['eventId']} (type: ${json['eventId'].runtimeType})',
+            );
+            print(
+              '   eventDetailId (from JSON): ${json['eventDetailId']} (type: ${json['eventDetailId'].runtimeType})',
+            );
+            print('   eventName: ${json['eventName']}');
+
+            final reg = EventRegistrationModel.fromJson(json);
+
+            print('📦 PARSED MODEL:');
+            print(
+              '   reg.eventId: ${reg.eventId} (type: ${reg.eventId.runtimeType})',
+            );
+            print(
+              '   reg.eventDetailId: ${reg.eventDetailId} (type: ${reg.eventDetailId.runtimeType})',
+            );
+            print('   reg.eventName: ${reg.eventName}');
+            print('=' * 60 + '\n');
+            return reg;
           }).toList();
           _totalPages = pagination['last_page'] ?? 1;
           _isLoading = false;
@@ -319,17 +341,14 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                   _attendByFace(registration);
                 },
               ),
-            if (attendanceMethods['camera'] == 1 &&
-                !attendedMethods.contains('camera'))
+            if (attendanceMethods['camera_IOT'] == 1 &&
+                !attendedMethods.contains('camera_IOT'))
               ListTile(
-                leading: const Icon(
-                  Icons.qr_code_scanner,
-                  color: Colors.orange,
-                ),
-                title: const Text('Quét camera'),
+                leading: const Icon(Icons.videocam, color: Colors.orange),
+                title: const Text('Camera IOT'),
                 onTap: () {
                   Navigator.pop(context);
-                  _showErrorDialog('Tính năng đang phát triển');
+                  _showErrorDialog('Hệ thống IOT sẽ điểm danh bạn');
                 },
               ),
             if (attendanceMethods['barcode'] == 1 &&
@@ -771,15 +790,15 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'pending':
+      case 'wait_confirm':
         return Colors.orange;
-      case 'approved':
+      case 'confirmed':
         return Colors.blue;
-      case 'rejected':
+      case 'canceled':
         return Colors.red;
       case 'attended':
         return Colors.green;
-      case 'canceled':
+      case 'student_canceled':
         return Colors.grey;
       default:
         return Colors.grey;
@@ -843,218 +862,265 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Status Badge & Event Type
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: statusColor, width: 1),
-                  ),
-                  child: Text(
-                    registration.statusText,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Container(
+      child: InkWell(
+        onTap: () {
+          print('\n' + '🔔' * 30);
+          print('🔔 CARD TAPPED!');
+          print('🔔 Event Name: ${registration.eventName}');
+          print(
+            '🔔 registration.eventId = ${registration.eventId} (type: ${registration.eventId.runtimeType})',
+          );
+          print(
+            '🔔 registration.eventDetailId = ${registration.eventDetailId} (type: ${registration.eventDetailId.runtimeType})',
+          );
+          print(
+            '🔔 registration.registrationId = ${registration.registrationId}',
+          );
+
+          final eventIdToPass = registration.eventId;
+          print('🔔 eventIdToPass variable = $eventIdToPass');
+          print(
+            '🔔 About to navigate to EventDetailScreen with eventId: $eventIdToPass',
+          );
+          print('🔔' * 30 + '\n');
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) {
+                print(
+                  '🚀 Building EventDetailScreen with eventId: $eventIdToPass',
+                );
+                return EventDetailScreen(eventId: eventIdToPass);
+              },
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Status Badge & Event Type
+              Row(
+                children: [
+                  Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.purple.withOpacity(0.1),
+                      color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: statusColor, width: 1),
                     ),
                     child: Text(
-                      registration.eventTypeName,
+                      registration.statusText,
                       style: TextStyle(
-                        color: Colors.purple[700],
+                        color: statusColor,
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Event Name
-            Text(
-              registration.eventName,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-
-            // Session
-            Row(
-              children: [
-                Icon(Icons.event_note, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    registration.session,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-
-            // Location
-            Row(
-              children: [
-                Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    registration.location,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-
-            // Time
-            Row(
-              children: [
-                Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    registration.formattedCreditDate,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-
-            // Points
-            Row(
-              children: [
-                Icon(Icons.star, size: 16, color: Colors.amber[700]),
-                const SizedBox(width: 8),
-                Text(
-                  '+${registration.conductScore} điểm',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.amber[700],
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-
-            // Registered Time
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(Icons.app_registration, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 8),
-                Text(
-                  'Đăng ký lúc: ${registration.formattedRegisterTime}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-
-            // Action Buttons
-            const SizedBox(height: 12),
-            if (registration.status == 'canceled') ...[
-              // Không hiển thị nút gì với status canceled
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Đăng ký đã được hủy',
-                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ] else if (registration.status == 'approved') ...[
-              // Chỉ approved mới hiện nút điểm danh
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _handleAttendance(registration),
-                      icon: const Icon(Icons.check_circle, size: 18),
-                      label: const Text('Điểm danh'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _cancelRegistration(registration),
-                      icon: const Icon(Icons.cancel, size: 18),
-                      label: const Text('Hủy'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        side: const BorderSide(color: Colors.red),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        registration.eventTypeName,
+                        style: TextStyle(
+                          color: Colors.purple[700],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
                 ],
               ),
-            ] else if (registration.status == 'pending') ...[
-              // Pending chỉ hiện nút hủy
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _cancelRegistration(registration),
-                  icon: const Icon(Icons.cancel, size: 18),
-                  label: const Text('Hủy đăng ký'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
+              const SizedBox(height: 12),
+
+              // Event Name
+              Text(
+                registration.eventName,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+
+              // Session
+              Row(
+                children: [
+                  Icon(Icons.event_note, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      registration.session,
+                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+
+              // Location
+              Row(
+                children: [
+                  Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      registration.location,
+                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+
+              // Time
+              Row(
+                children: [
+                  Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      registration.formattedCreditDate,
+                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+
+              // Points
+              Row(
+                children: [
+                  Icon(Icons.star, size: 16, color: Colors.amber[700]),
+                  const SizedBox(width: 8),
+                  Text(
+                    '+${registration.conductScore} điểm',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.amber[700],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+
+              // Registered Time
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(
+                    Icons.app_registration,
+                    size: 16,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Đăng ký lúc: ${registration.formattedRegisterTime}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+
+              // Action Buttons
+              const SizedBox(height: 12),
+              if (registration.status == 'student_canceled') ...[
+                // Không hiển thị nút gì với status student_canceled
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Đăng ký đã được hủy',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
+              ] else if (registration.status == 'confirmed') ...[
+                // Chỉ confirmed mới hiện nút điểm danh
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _handleAttendance(registration),
+                        icon: const Icon(Icons.check_circle, size: 18),
+                        label: const Text('Điểm danh'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _cancelRegistration(registration),
+                        icon: const Icon(Icons.cancel, size: 18),
+                        label: const Text('Hủy'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ] else if (registration.status == 'wait_confirm') ...[
+                // wait_confirm chỉ hiện nút hủy
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _cancelRegistration(registration),
+                    icon: const Icon(Icons.cancel, size: 18),
+                    label: const Text('Hủy đăng ký'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
-        ),
-      ),
-    );
+          ),
+        ), // Đóng Padding
+      ), // Đóng InkWell
+    ); // Đóng Card
   }
 
   Widget _buildEmptyState() {

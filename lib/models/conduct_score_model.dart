@@ -61,13 +61,13 @@ class EventScore {
 
   String get statusText {
     switch (status) {
-      case 'pending':
+      case 'wait_confirm':
         return 'Chờ duyệt';
-      case 'approved':
+      case 'confirmed':
         return 'Đã duyệt';
       case 'attended':
         return 'Đã tham gia';
-      case 'rejected':
+      case 'canceled':
         return 'Từ chối';
       default:
         return status;
@@ -134,26 +134,26 @@ class ScoreStatistics {
 }
 
 class RegistrationStats {
-  final int pending;
-  final int approved;
+  final int wait_confirm;
+  final int confirmed;
   final int attended;
-  final int rejected;
+  final int canceled;
   final int total;
 
   RegistrationStats({
-    required this.pending,
-    required this.approved,
+    required this.wait_confirm,
+    required this.confirmed,
     required this.attended,
-    required this.rejected,
+    required this.canceled,
     required this.total,
   });
 
   factory RegistrationStats.fromJson(Map<String, dynamic> json) {
     return RegistrationStats(
-      pending: json['pending'] ?? 0,
-      approved: json['approved'] ?? 0,
+      wait_confirm: json['wait_confirm'] ?? 0,
+      confirmed: json['confirmed'] ?? 0,
       attended: json['attended'] ?? 0,
-      rejected: json['rejected'] ?? 0,
+      canceled: json['canceled'] ?? 0,
       total: json['total'] ?? 0,
     );
   }

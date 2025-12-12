@@ -104,6 +104,7 @@ class EventSessionModel {
 
 class EventRegistrationModel {
   final int registrationId;
+  final int eventId;
   final int eventDetailId;
   final String eventName;
   final String eventTypeName;
@@ -121,6 +122,7 @@ class EventRegistrationModel {
 
   EventRegistrationModel({
     required this.registrationId,
+    required this.eventId,
     required this.eventDetailId,
     required this.eventName,
     required this.eventTypeName,
@@ -138,8 +140,13 @@ class EventRegistrationModel {
   });
 
   factory EventRegistrationModel.fromJson(Map<String, dynamic> json) {
+    print('🔴 EventRegistrationModel.fromJson:');
+    print('   json[eventId] = ${json['eventId']}');
+    print('   json[eventDetailId] = ${json['eventDetailId']}');
+
     return EventRegistrationModel(
       registrationId: json['registrationId'] ?? 0,
+      eventId: json['eventId'] ?? 0,
       eventDetailId: json['eventDetailId'] ?? 0,
       eventName: json['eventName'] ?? '',
       eventTypeName: json['eventTypeName'] ?? '',
@@ -148,12 +155,12 @@ class EventRegistrationModel {
       creditDate: json['creditDate'] ?? '',
       conductScore: json['conductScore'] ?? 0,
       registerTime: json['registerTime'] ?? '',
-      status: json['status']?.toString() ?? 'pending', //  Thêm
+      status: json['status']?.toString() ?? 'wait_confirm',
       semesterName: json['semesterName'],
-      isAttendFace: json['isAttendFace'] ?? 0, //  Thêm
-      isAttendProof: json['isAttendProof'] ?? 0, //  Thêm
-      isAttendCamera: json['isAttendCamera'] ?? 0, //  Thêm
-      isAttendBarcode: json['isAttendBarcode'] ?? 0, //  Thêm
+      isAttendFace: json['isAttendFace'] ?? 0,
+      isAttendProof: json['isAttendProof'] ?? 0,
+      isAttendCamera: json['isAttendCamera'] ?? 0,
+      isAttendBarcode: json['isAttendBarcode'] ?? 0,
     );
   }
 
@@ -175,18 +182,17 @@ class EventRegistrationModel {
     }
   }
 
-  //  Thêm getter cho statusText
   String get statusText {
     switch (status.toLowerCase()) {
-      case 'approved':
+      case 'confirmed':
         return 'Đã duyệt';
-      case 'pending':
+      case 'wait_confirm':
         return 'Chờ duyệt';
-      case 'rejected':
+      case 'canceled':
         return 'Từ chối';
       case 'attended':
         return 'Đã điểm danh';
-      case 'canceled':
+      case 'student_canceled':
         return 'Đã hủy';
       default:
         return status;

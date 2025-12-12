@@ -52,7 +52,7 @@ class _EventListScreenState extends State<EventListScreen>
       } else if (tabIndex == 1) {
         await _loadMyRegistrations(false);
       } else {
-        // Lịch sử - Load history (attended & rejected)
+        // Lịch sử - Load history (attended & canceled)
         await _loadMyRegistrations(true);
       }
     } catch (e) {
@@ -127,13 +127,15 @@ class _EventListScreenState extends State<EventListScreen>
                 .where(
                   (r) =>
                       r.status == 'attended' ||
-                      r.status == 'rejected' ||
-                      r.status == 'canceled',
+                      r.status == 'canceled' ||
+                      r.status == 'student_canceled',
                 )
                 .toList();
           } else {
             _myRegistrations = allRegs
-                .where((r) => r.status == 'pending' || r.status == 'approved')
+                .where(
+                  (r) => r.status == 'wait_confirm' || r.status == 'confirmed',
+                )
                 .toList();
           }
         });
@@ -313,49 +315,120 @@ class _EventListScreenState extends State<EventListScreen>
               ),
             ],
             const SizedBox(height: 16),
-            // Chỉ hiển thị các phương thức CHƯA điểm danh
-            if (attendanceMethods['proof'] == 1 &&
-                !attendedMethods.contains('proof'))
+            // Hiển thị TẤT CẢ phương thức, vô hiệu hóa nếu đã điểm danh
+            if (attendanceMethods['proof'] == 1 ||
+                attendedMethods.contains('proof'))
               ListTile(
-                leading: const Icon(Icons.camera_alt, color: Colors.blue),
-                title: const Text('Chụp ảnh minh chứng'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _attendByProof(registration);
-                },
-              ),
-            if (attendanceMethods['face'] == 1 &&
-                !attendedMethods.contains('face'))
-              ListTile(
-                leading: const Icon(Icons.face, color: Colors.green),
-                title: const Text('Nhận diện khuôn mặt'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _attendByFace(registration, data);
-                },
-              ),
-            if (attendanceMethods['camera'] == 1 &&
-                !attendedMethods.contains('camera'))
-              ListTile(
-                leading: const Icon(
-                  Icons.qr_code_scanner,
-                  color: Colors.orange,
+                leading: Icon(
+                  Icons.camera_alt,
+                  color: attendedMethods.contains('proof')
+                      ? Colors.grey
+                      : Colors.blue,
                 ),
-                title: const Text('Quét camera'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showErrorDialog('Tính năng đang phát triển');
-                },
+                title: Text(
+                  'Chụp ảnh minh chứng',
+                  style: TextStyle(
+                    color: attendedMethods.contains('proof')
+                        ? Colors.grey
+                        : Colors.black,
+                  ),
+                ),
+                trailing: attendedMethods.contains('proof')
+                    ? const Icon(Icons.check_circle, color: Colors.green)
+                    : null,
+                enabled: !attendedMethods.contains('proof'),
+                onTap: attendedMethods.contains('proof')
+                    ? null
+                    : () {
+                        Navigator.pop(context);
+                        _attendByProof(registration);
+                      },
               ),
-            if (attendanceMethods['barcode'] == 1 &&
-                !attendedMethods.contains('barcode'))
+            if (attendanceMethods['face'] == 1 ||
+                attendedMethods.contains('face'))
               ListTile(
-                leading: const Icon(Icons.qr_code, color: Colors.purple),
-                title: const Text('Quét mã QR'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showErrorDialog('Hỗ trợ điểm danh sẽ điểm danh bạn');
-                },
+                leading: Icon(
+                  Icons.face,
+                  color: attendedMethods.contains('face')
+                      ? Colors.grey
+                      : Colors.green,
+                ),
+                title: Text(
+                  'Nhận diện khuôn mặt',
+                  style: TextStyle(
+                    color: attendedMethods.contains('face')
+                        ? Colors.grey
+                        : Colors.black,
+                  ),
+                ),
+                trailing: attendedMethods.contains('face')
+                    ? const Icon(Icons.check_circle, color: Colors.green)
+                    : null,
+                enabled: !attendedMethods.contains('face'),
+                onTap: attendedMethods.contains('face')
+                    ? null
+                    : () {
+                        Navigator.pop(context);
+                        _attendByFace(registration, data);
+                      },
+              ),
+            if (attendanceMethods['camera_IOT'] == 1 ||
+                attendedMethods.contains('camera_IOT'))
+              ListTile(
+                leading: Icon(
+                  Icons.videocam,
+                  color: attendedMethods.contains('camera_IOT')
+                      ? Colors.grey
+                      : Colors.orange,
+                ),
+                title: Text(
+                  'Camera IOT',
+                  style: TextStyle(
+                    color: attendedMethods.contains('camera_IOT')
+                        ? Colors.grey
+                        : Colors.black,
+                  ),
+                ),
+                trailing: attendedMethods.contains('camera_IOT')
+                    ? const Icon(Icons.check_circle, color: Colors.green)
+                    : null,
+                enabled: !attendedMethods.contains('camera_IOT'),
+                onTap: attendedMethods.contains('camera_IOT')
+                    ? null
+                    : () {
+                        Navigator.pop(context);
+                        _showErrorDialog('Hệ thống IOT sẽ điểm danh bạn');
+                      },
+              ),
+            if (attendanceMethods['barcode'] == 1 ||
+                attendedMethods.contains('barcode'))
+              ListTile(
+                leading: Icon(
+                  Icons.qr_code,
+                  color: attendedMethods.contains('barcode')
+                      ? Colors.grey
+                      : Colors.purple,
+                ),
+                title: Text(
+                  'Quét mã Barcode',
+                  style: TextStyle(
+                    color: attendedMethods.contains('barcode')
+                        ? Colors.grey
+                        : Colors.black,
+                  ),
+                ),
+                trailing: attendedMethods.contains('barcode')
+                    ? const Icon(Icons.check_circle, color: Colors.green)
+                    : null,
+                enabled: !attendedMethods.contains('barcode'),
+                onTap: attendedMethods.contains('barcode')
+                    ? null
+                    : () {
+                        Navigator.pop(context);
+                        _showErrorDialog(
+                          'Hỗ trợ điểm danh sẽ quét barcode cho bạn',
+                        );
+                      },
               ),
           ],
         ),
@@ -634,11 +707,12 @@ class _EventListScreenState extends State<EventListScreen>
 
       print(' Nhận diện thành công: $studentId, confidence: $confidence%');
 
-      // Bước 3: Gọi Laravel để lưu attendance
+      // Bước 3: Gọi Laravel để lưu attendance (kèm ảnh)
       final attendResult = await EventService.attendByFace(
         registration.registrationId,
         studentId,
         confidence,
+        photo.path, // Gửi ảnh lên server
       );
 
       if (!mounted) return;
@@ -1242,7 +1316,7 @@ class _EventListScreenState extends State<EventListScreen>
             context,
             MaterialPageRoute(
               builder: (context) =>
-                  EventDetailScreen(eventId: registration.eventDetailId),
+                  EventDetailScreen(eventId: registration.eventId),
             ),
           ).then((_) => _loadTabData(_tabController.index));
         },
@@ -1348,8 +1422,8 @@ class _EventListScreenState extends State<EventListScreen>
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                  // Nút điểm danh - chỉ hiện khi approved
-                  if (registration.status.toLowerCase() == 'approved') ...[
+                  // Nút điểm danh - chỉ hiện khi confirmed
+                  if (registration.status.toLowerCase() == 'confirmed') ...[
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () => _handleAttendance(registration),
@@ -1363,8 +1437,8 @@ class _EventListScreenState extends State<EventListScreen>
                     ),
                     const SizedBox(width: 8),
                   ],
-                  // Nút hủy - chỉ hiện khi pending
-                  if (registration.status.toLowerCase() == 'pending')
+                  // Nút hủy - chỉ hiện khi wait_confirm
+                  if (registration.status.toLowerCase() == 'wait_confirm')
                     Expanded(
                       child: TextButton.icon(
                         onPressed: () => _cancelRegistration(registration),
@@ -1406,7 +1480,7 @@ class _EventListScreenState extends State<EventListScreen>
             context,
             MaterialPageRoute(
               builder: (context) =>
-                  EventDetailScreen(eventId: registration.eventDetailId),
+                  EventDetailScreen(eventId: registration.eventId),
             ),
           ).then((_) => _loadTabData(_tabController.index));
         },
@@ -1518,15 +1592,15 @@ class _EventListScreenState extends State<EventListScreen>
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'pending':
+      case 'wait_confirm':
         return Colors.orange;
-      case 'approved':
+      case 'confirmed':
         return Colors.blue;
       case 'attended':
         return Colors.green;
-      case 'rejected':
-        return Colors.red;
       case 'canceled':
+        return Colors.red;
+      case 'student_canceled':
         return Colors.grey;
       default:
         return Colors.grey;

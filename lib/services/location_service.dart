@@ -1,8 +1,8 @@
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
-  static const double targetLat = 10.807350;
-  static const double targetLng = 106.6286126;
+  static const double targetLat = 10.749068;
+  static const double targetLng = 106.625575;
   // static const double targetLat = 10.749342;
   // static const double targetLng = 106.625630;
 

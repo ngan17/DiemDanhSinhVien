@@ -21,6 +21,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   @override
   void initState() {
     super.initState();
+    print('\n' + '🟢' * 30);
+    print('🟢 EventDetailScreen.initState()');
+    print(
+      '🟢 widget.eventId = ${widget.eventId} (type: ${widget.eventId.runtimeType})',
+    );
+    print('🟢' * 30 + '\n');
     _loadEventDetail();
   }
 
@@ -30,6 +36,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     });
 
     try {
+      print(
+        '🔵 _loadEventDetail: About to call API with widget.eventId = ${widget.eventId}',
+      );
       final result = await EventService.getEventDetail(widget.eventId);
 
       if (!mounted) return;
