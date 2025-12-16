@@ -6,6 +6,7 @@ import '../../services/event_service.dart';
 import '../../services/face_service.dart';
 import '../../services/location_service.dart';
 import 'event_detail_screen.dart';
+import 'event_history_detail_screen.dart';
 
 class EventListScreen extends StatefulWidget {
   const EventListScreen({super.key});
@@ -128,9 +129,10 @@ class _EventListScreenState extends State<EventListScreen>
                   (r) =>
                       r.status == 'attended' ||
                       r.status == 'canceled' ||
-                      r.status == 'student_canceled' ||
+                      r.status == 'student_cancelled' ||
                       r.status == 'unattended' ||
-                      r.status == 'scored',
+                      r.status == 'scored' ||
+                      r.status == 'reject',
                 )
                 .toList();
           } else {
@@ -243,6 +245,92 @@ class _EventListScreenState extends State<EventListScreen>
     }
   }
 
+  Future<void> _reregisterEvent(EventRegistrationModel registration) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Xác nhận đăng ký lại'),
+        content: Text(
+          'Bạn có muốn đăng ký lại sự kiện "${registration.eventName}"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2196F3),
+            ),
+            child: const Text('Đăng ký', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final result = await EventService.registerEvent(
+        eventDetailId: registration.eventDetailId,
+      );
+
+      if (!mounted) return;
+
+      Navigator.pop(context);
+
+      if (result['success'] == true) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 32),
+                const SizedBox(width: 12),
+                const Text('Thành công'),
+              ],
+            ),
+            content: Text(result['message'] ?? 'Đăng ký lại thành công!'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _loadTabData(_tabController.index);
+                },
+                child: const Text('Đóng'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Đăng ký lại thất bại'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   /// Xử lý điểm danh
   Future<void> _handleAttendance(EventRegistrationModel registration) async {
     print(' Handle attendance for: ${registration.eventName}');
@@ -317,127 +405,68 @@ class _EventListScreenState extends State<EventListScreen>
               ),
             ],
             const SizedBox(height: 16),
-            // Hiển thị TẤT CẢ phương thức, vô hiệu hóa nếu đã điểm danh
-            if (attendanceMethods['proof'] == 1 ||
-                attendedMethods.contains('proof'))
+            // Backend đã loại bỏ các phương thức đã điểm danh
+            // Chỉ hiển thị các phương thức còn khả dụng (attendanceMethods)
+            if (attendanceMethods['proof'] == 1)
               ListTile(
-                leading: Icon(
-                  Icons.camera_alt,
-                  color: attendedMethods.contains('proof')
-                      ? Colors.grey
-                      : Colors.blue,
-                ),
-                title: Text(
-                  'Chụp ảnh minh chứng',
-                  style: TextStyle(
-                    color: attendedMethods.contains('proof')
-                        ? Colors.grey
-                        : Colors.black,
-                  ),
-                ),
-                trailing: attendedMethods.contains('proof')
-                    ? const Icon(Icons.check_circle, color: Colors.green)
-                    : null,
-                enabled: !attendedMethods.contains('proof'),
-                onTap: attendedMethods.contains('proof')
-                    ? null
-                    : () {
-                        Navigator.pop(context);
-                        _attendByProof(registration);
-                      },
+                leading: const Icon(Icons.camera_alt, color: Colors.blue),
+                title: const Text('Chụp ảnh minh chứng'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _attendByProof(registration);
+                },
               ),
-            if (attendanceMethods['face'] == 1 ||
-                attendedMethods.contains('face'))
+            if (attendanceMethods['face'] == 1)
               ListTile(
-                leading: Icon(
-                  Icons.face,
-                  color: attendedMethods.contains('face')
-                      ? Colors.grey
-                      : Colors.green,
-                ),
-                title: Text(
-                  'Nhận diện khuôn mặt',
-                  style: TextStyle(
-                    color: attendedMethods.contains('face')
-                        ? Colors.grey
-                        : Colors.black,
-                  ),
-                ),
-                trailing: attendedMethods.contains('face')
-                    ? const Icon(Icons.check_circle, color: Colors.green)
-                    : null,
-                enabled: !attendedMethods.contains('face'),
-                onTap: attendedMethods.contains('face')
-                    ? null
-                    : () {
-                        Navigator.pop(context);
-                        _attendByFace(registration, data);
-                      },
+                leading: const Icon(Icons.face, color: Colors.green),
+                title: const Text('Nhận diện khuôn mặt'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _attendByFace(registration, data);
+                },
               ),
-            if (attendanceMethods['camera_IOT'] == 1 ||
-                attendedMethods.contains('camera_IOT'))
+            if (attendanceMethods['camera_IOT'] == 1)
               ListTile(
-                leading: Icon(
-                  Icons.videocam,
-                  color: attendedMethods.contains('camera_IOT')
-                      ? Colors.grey
-                      : Colors.orange,
+                leading: const Icon(Icons.videocam, color: Colors.orange),
+                title: const Text('Camera IOT'),
+                subtitle: const Text(
+                  'Hệ thống sẽ tự động điểm danh',
+                  style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
                 ),
-                title: Text(
-                  'Camera IOT',
-                  style: TextStyle(
-                    color: attendedMethods.contains('camera_IOT')
-                        ? Colors.grey
-                        : Colors.black,
-                  ),
-                ),
-                trailing: attendedMethods.contains('camera_IOT')
-                    ? const Icon(Icons.check_circle, color: Colors.green)
-                    : null,
-                enabled: !attendedMethods.contains('camera_IOT'),
-                onTap: attendedMethods.contains('camera_IOT')
-                    ? null
-                    : () {
-                        Navigator.pop(context);
-                        _showErrorDialog('Hệ thống IOT sẽ điểm danh bạn');
-                      },
+                enabled: false,
               ),
-            if (attendanceMethods['barcode'] == 1 ||
-                attendedMethods.contains('barcode'))
+            if (attendanceMethods['barcode'] == 1)
               ListTile(
-                leading: Icon(
-                  Icons.qr_code,
-                  color: attendedMethods.contains('barcode')
-                      ? Colors.grey
-                      : Colors.purple,
+                leading: const Icon(Icons.qr_code, color: Colors.purple),
+                title: const Text('Quét mã Barcode'),
+                subtitle: const Text(
+                  'Hỗ trợ điểm danh sẽ quét cho bạn',
+                  style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
                 ),
-                title: Text(
-                  'Quét mã Barcode',
+                enabled: false,
+              ),
+            // Nếu không có phương thức nào khả dụng
+            if (attendanceMethods['proof'] != 1 &&
+                attendanceMethods['face'] != 1 &&
+                attendanceMethods['camera_IOT'] != 1 &&
+                attendanceMethods['barcode'] != 1)
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'Không có phương thức điểm danh khả dụng',
                   style: TextStyle(
-                    color: attendedMethods.contains('barcode')
-                        ? Colors.grey
-                        : Colors.black,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
                   ),
+                  textAlign: TextAlign.center,
                 ),
-                trailing: attendedMethods.contains('barcode')
-                    ? const Icon(Icons.check_circle, color: Colors.green)
-                    : null,
-                enabled: !attendedMethods.contains('barcode'),
-                onTap: attendedMethods.contains('barcode')
-                    ? null
-                    : () {
-                        Navigator.pop(context);
-                        _showErrorDialog(
-                          'Hỗ trợ điểm danh sẽ quét barcode cho bạn',
-                        );
-                      },
               ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
+            child: const Text('Đóng'),
           ),
         ],
       ),
@@ -1481,8 +1510,10 @@ class _EventListScreenState extends State<EventListScreen>
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) =>
-                  EventDetailScreen(eventId: registration.eventId),
+              builder: (context) => EventHistoryDetailScreen(
+                eventDetailId: registration.eventDetailId,
+                registrationId: registration.registrationId,
+              ),
             ),
           ).then((_) => _loadTabData(_tabController.index));
         },
@@ -1569,6 +1600,33 @@ class _EventListScreenState extends State<EventListScreen>
                   ],
                 ),
               ],
+
+              // Nút đăng ký lại cho student_cancelled
+              if (registration.status == 'student_cancelled') ...[
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _reregisterEvent(registration),
+                    icon: const Icon(Icons.replay, size: 18),
+                    label: const Text('Đăng ký lại'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2196F3),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1602,12 +1660,14 @@ class _EventListScreenState extends State<EventListScreen>
         return Colors.green;
       case 'canceled':
         return Colors.red;
-      case 'student_canceled':
+      case 'student_cancelled':
         return Colors.grey;
       case 'unattended':
         return Colors.red.shade700;
       case 'scored':
         return Colors.green;
+      case 'reject':
+        return Colors.red;
       default:
         return Colors.grey;
     }

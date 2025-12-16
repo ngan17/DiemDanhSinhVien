@@ -10,6 +10,7 @@ import '../../services/event_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
 import '../../utils/face_auth_helper.dart';
+import '../../utils/image_utils.dart';
 import '../../config/app_config.dart';
 import '../settings/settings_screen.dart';
 import '../events/event_list_screen.dart';
@@ -523,90 +524,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Card(
         margin: const EdgeInsets.only(bottom: 12),
         color: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF4CAF50).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        event.status,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF4CAF50),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      event.eventName,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          size: 14,
-                          color: Colors.grey[600],
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            event.formattedDateRange,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              if (event.image != null && event.image!.isNotEmpty) ...[
-                const SizedBox(width: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    '${AppConfig.baseUrl.replaceAll('/api', '')}${event.image}',
-                    width: 80,
-                    height: 80,
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Ảnh sự kiện nằm phía trên
+            if (event.image != null && event.image!.isNotEmpty)
+              Stack(
+                children: [
+                  Image.network(
+                    ImageUtils.getImageUrl(event.image),
+                    width: double.infinity,
+                    // height: 200,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
-                        width: 80,
-                        height: 80,
+                        width: double.infinity,
+                        height: 200,
                         color: Colors.grey[300],
-                        child: Icon(Icons.event, color: Colors.grey),
+                        child: Icon(
+                          Icons.event,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
                       );
                     },
                     loadingBuilder: (context, child, loadingProgress) {
                       if (loadingProgress == null) return child;
                       return Container(
-                        width: 80,
-                        height: 80,
-                        color: Colors.grey[300],
+                        width: double.infinity,
+                        height: 200,
+                        color: Colors.grey[200],
                         child: Center(
                           child: CircularProgressIndicator(
                             value: loadingProgress.expectedTotalBytes != null
@@ -618,10 +566,89 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       );
                     },
                   ),
-                ),
-              ],
-            ],
-          ),
+                  // Badge trạng thái nằm trên ảnh
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1ABC9C),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        event.status.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            // Nội dung sự kiện
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Ngày giờ
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 14,
+                        color: Colors.blue[700],
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        event.formattedDateRange,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Tên sự kiện
+                  Text(
+                    event.eventName,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  // Loại sự kiện
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.category_outlined,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        event.eventTypeName,
+                        style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

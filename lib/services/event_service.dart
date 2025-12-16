@@ -416,4 +416,39 @@ class EventService {
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
+
+  // Lấy chi tiết sự kiện từ lịch sử
+  static Future<Map<String, dynamic>> getEventDetailHistory(
+    int eventDetailId,
+  ) async {
+    try {
+      print(' Getting event detail history: $eventDetailId');
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/events/$eventDetailId/history'),
+        headers: await AuthService.headersWithAuth,
+      );
+
+      print(' Event detail history status: ${response.statusCode}');
+      print(' Response: ${response.body}');
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'data': data['data'],
+          'message': data['message'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Không thể lấy thông tin sự kiện',
+        };
+      }
+    } catch (e) {
+      print(' Error getEventDetailHistory: $e');
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
 }

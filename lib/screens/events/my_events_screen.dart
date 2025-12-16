@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../models/event_model.dart';
 import '../../services/event_service.dart';
 import 'event_detail_screen.dart';
+import 'event_history_detail_screen.dart';
 
 class MyEventsScreen extends StatefulWidget {
   const MyEventsScreen({super.key});
@@ -219,6 +220,92 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['message'] ?? 'Hủy đăng ký thất bại'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _reregisterEvent(EventRegistrationModel registration) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Xác nhận đăng ký lại'),
+        content: Text(
+          'Bạn có muốn đăng ký lại sự kiện "${registration.eventName}"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2196F3),
+            ),
+            child: const Text('Đăng ký', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final result = await EventService.registerEvent(
+        eventDetailId: registration.eventDetailId,
+      );
+
+      if (!mounted) return;
+
+      Navigator.pop(context);
+
+      if (result['success'] == true) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 32),
+                const SizedBox(width: 12),
+                const Text('Thành công'),
+              ],
+            ),
+            content: Text(result['message'] ?? 'Đăng ký lại thành công!'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _loadMyRegistrations();
+                },
+                child: const Text('Đóng'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Đăng ký lại thất bại'),
             backgroundColor: Colors.red,
           ),
         );
@@ -800,7 +887,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
         return Colors.green;
       case 'scored':
         return Colors.green;
-      case 'student_canceled':
+      case 'student_cancelled':
         return Colors.grey;
       case 'unattended':
         return Colors.red.shade700;
@@ -868,18 +955,36 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () {
-   
-          final eventIdToPass = registration.eventId;
+          // Nếu là status đã kết thúc, mở EventHistoryDetailScreen
+          final finishedStatuses = [
+            'student_cancelled',
+            'canceled',
+            'attended',
+            'scored',
+            'unattended',
+            'reject',
+          ];
 
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) {
-            
-                return EventDetailScreen(eventId: eventIdToPass);
-              },
-            ),
-          );
+          if (finishedStatuses.contains(registration.status.toLowerCase())) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EventHistoryDetailScreen(
+                  eventDetailId: registration.eventDetailId,
+                  registrationId: registration.registrationId,
+                ),
+              ),
+            ).then((_) => _loadMyRegistrations());
+          } else {
+            // Status chưa kết thúc (wait_confirm, confirmed), mở EventDetailScreen
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    EventDetailScreen(eventId: registration.eventId),
+              ),
+            ).then((_) => _loadMyRegistrations());
+          }
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
@@ -887,7 +992,6 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            
               Row(
                 children: [
                   Container(
@@ -1029,33 +1133,55 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
               // Action Buttons
               const SizedBox(height: 12),
-              if (registration.status == 'student_canceled') ...[
-                // Không hiển thị nút gì với status student_canceled
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        size: 16,
-                        color: Colors.grey[600],
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Đăng ký đã được hủy',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[600],
-                          ),
+              if (registration.status == 'student_cancelled') ...[
+                // Hiển thị nút đăng ký lại
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Đã hủy',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: () => _reregisterEvent(registration),
+                      icon: const Icon(Icons.replay, size: 18),
+                      label: const Text('Đăng ký lại'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2196F3),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ] else if (registration.status == 'confirmed') ...[
                 // Chỉ confirmed mới hiện nút điểm danh

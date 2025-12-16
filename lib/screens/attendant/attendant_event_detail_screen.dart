@@ -40,7 +40,7 @@ class _AttendantEventDetailScreenState
 
       if (!mounted) return;
 
-      // Parse giống như event_detail_screen.dart
+     
       if (result != null && result['success'] == true) {
         final data = result['data'];
         print('Data from result: $data');
@@ -93,12 +93,12 @@ class _AttendantEventDetailScreenState
     );
   }
 
-  // Hàm kiểm tra xem session có đang diễn ra không dựa trên creditDate
+ 
   bool _isSessionOngoing(String? creditDate) {
     if (creditDate == null) return false;
 
     try {
-      // creditDate format: "2025-11-22 00:00:00"
+     
       final sessionDate = DateTime.parse(creditDate.split(' ')[0]);
       final today = DateTime.now();
 

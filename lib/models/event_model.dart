@@ -116,12 +116,12 @@ class EventRegistrationModel {
   final String creditDate;
   final int conductScore;
   final String registerTime;
-  final String status; //  Thêm trường này
+  final String status;
   final String? semesterName;
-  final int isAttendFace; //  Thêm
-  final int isAttendProof; //  Thêm
-  final int isAttendCamera; //  Thêm
-  final int isAttendBarcode; //  Thêm
+  final int isAttendFace;
+  final int isAttendProof;
+  final int isAttendCamera;
+  final int isAttendBarcode;
 
   EventRegistrationModel({
     required this.registrationId,
@@ -134,12 +134,12 @@ class EventRegistrationModel {
     required this.creditDate,
     required this.conductScore,
     required this.registerTime,
-    required this.status, //  Thêm
+    required this.status,
     this.semesterName,
-    this.isAttendFace = 0, //  Thêm
-    this.isAttendProof = 0, //  Thêm
-    this.isAttendCamera = 0, //  Thêm
-    this.isAttendBarcode = 0, //  Thêm
+    this.isAttendFace = 0,
+    this.isAttendProof = 0,
+    this.isAttendCamera = 0,
+    this.isAttendBarcode = 0,
   });
 
   factory EventRegistrationModel.fromJson(Map<String, dynamic> json) {
@@ -195,12 +195,14 @@ class EventRegistrationModel {
         return 'Từ chối';
       case 'attended':
         return 'Đã điểm danh';
-      case 'student_canceled':
+      case 'student_cancelled':
         return 'Đã hủy';
       case 'unattended':
         return 'Vắng mặt';
       case 'scored':
         return 'Đã điểm danh';
+      case 'reject':
+        return 'Từ chối phản hồi';
       default:
         return status;
     }
