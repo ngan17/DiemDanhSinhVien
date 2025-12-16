@@ -274,7 +274,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     CircleAvatar(
                       radius: 20,
-                      backgroundColor: Colors.grey[200],
+                      backgroundColor: Colors.white,
                       child: const Icon(
                         Icons.person,
                         color: Colors.grey,
@@ -374,6 +374,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             : null,
         body: _buildCurrentScreen(),
         bottomNavigationBar: BottomNavigationBar(
+          backgroundColor: Colors.white,
           type: BottomNavigationBarType.fixed,
           currentIndex: _selectedIndex,
           onTap: _onItemTapped,
@@ -528,7 +529,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Ảnh sự kiện nằm phía trên
+          
             if (event.image != null && event.image!.isNotEmpty)
               Stack(
                 children: [

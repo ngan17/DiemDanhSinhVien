@@ -4,7 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../services/fcm_service.dart';
 import '../../main.dart';
 import '../../services/notification_service.dart';
-
+import '../../utils/image_utils.dart';
 import '../../services/auth_service.dart';
 import '../../services/attendant_service.dart';
 import '../settings/settings_screen.dart';
@@ -139,7 +139,7 @@ class _AttendantDashboardScreenState extends State<AttendantDashboardScreen> {
       case 0:
         return _buildHomeScreen();
       case 1:
-        return const SettingsScreen();
+        return const SettingsScreen(hideAppBar: true);
       default:
         return _buildHomeScreen();
     }
@@ -192,7 +192,7 @@ class _AttendantDashboardScreenState extends State<AttendantDashboardScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Xin chào, ${lecturerName ?? ''}',
+                          'Xin chào',
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -404,6 +404,84 @@ class _AttendantDashboardScreenState extends State<AttendantDashboardScreen> {
                 ],
               ),
               const SizedBox(height: 8),
+              // Hiển thị hình ảnh nếu có
+              if (event['image'] != null &&
+                  event['image'].toString().isNotEmpty)
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        ImageUtils.getImageUrl(event['image']),
+                        width: double.infinity,
+                        height: 200,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            width: double.infinity,
+                            height: 200,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.event,
+                              size: 48,
+                              color: Colors.grey[400],
+                            ),
+                          );
+                        },
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            width: double.infinity,
+                            height: 200,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                value:
+                                    loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    // Badge trạng thái nằm trên ảnh
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          statusText.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              if (event['image'] != null &&
+                  event['image'].toString().isNotEmpty)
+                const SizedBox(height: 12),
               Text(
                 event['eventName'] ?? '',
                 style: const TextStyle(

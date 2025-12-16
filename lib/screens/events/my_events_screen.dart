@@ -612,12 +612,15 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                               size: 18,
                             ),
                             const SizedBox(width: 6),
-                            Text(
-                              'Khung giờ ${currentSchedule['index']}:',
-                              style: TextStyle(
-                                color: Colors.green[700],
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
+                            Flexible(
+                              child: Text(
+                                'Khung giờ ${currentSchedule['index']}:',
+                                style: TextStyle(
+                                  color: Colors.green[700],
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -628,7 +631,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                           style: TextStyle(
                             color: Colors.green[900],
                             fontWeight: FontWeight.w600,
-                            fontSize: 14,
+                            fontSize: 10,
                           ),
                         ),
                       ],
@@ -677,7 +680,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
         }
       }
     } catch (e) {
-      print(' Error attendByProof: $e');
+      print('❌ Error attendByProof: $e');
       if (mounted) {
         _showErrorDialog('Lỗi: $e');
       }
@@ -686,7 +689,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
   Future<void> _attendByFace(EventRegistrationModel registration) async {
     try {
-      // TODO: Implement face recognition
+    
       _showErrorDialog('Tính năng nhận diện khuôn mặt đang phát triển');
     } catch (e) {
       print(' Error attendByFace: $e');

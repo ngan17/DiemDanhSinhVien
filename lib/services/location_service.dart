@@ -1,15 +1,55 @@
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
-  static const double targetLat = 10.749068;
-  static const double targetLng = 106.625575;
-  // static const double targetLat = 10.749342;
-  // static const double targetLng = 106.625630;
-
+  // static const double defaultLat = 10.807547; lê trọng tấn 140
+  // static const double defaultLng = 106.628616;
+  static const double defaultLat = 10.749246;
+   static const double defaultLng = 106.625484;
   // Bán kính cho phép (mét)
   static const double allowedRadius = 200.0;
 
-  static Future<bool> checkLocation() async {
+  static Map<String, double> _getTargetCoordinates(String? location) {
+    if (location == null || location.isEmpty) {
+      return {'lat': defaultLat, 'lng': defaultLng};
+    }
+
+    final locationLower = location.toLowerCase();
+
+    // Kiểm tra 263 Lê Trọng Tấn 
+    if (locationLower.contains('263')) {
+      return {'lat': 10.807089, 'lng': 106.622563};
+    }
+
+    // Kiểm tra 140 Lê Trọng Tấn
+    if (locationLower.contains('140')) {
+      return {'lat': 10.807547, 'lng': 106.628616};
+    }
+
+    return {'lat': defaultLat, 'lng': defaultLng};
+  }
+
+  static Future<bool> checkLocation({String? location}) async {
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    print(" KIỂM TRA VỊ TRÍ");
+    print(" Location từ sự kiện: ${location ?? 'NULL/EMPTY'}");
+
+    final coordinates = _getTargetCoordinates(location);
+    final targetLat = coordinates['lat']!;
+    final targetLng = coordinates['lng']!;
+
+    print(" Tọa độ mục tiêu đã chọn:");
+    print("   Latitude:  $targetLat");
+    print("   Longitude: $targetLng");
+    final locationLower = location?.toLowerCase() ?? '';
+    if (locationLower.contains('263') || locationLower.contains('sân trường')) {
+      print("    Đã chọn: 263 Lê Trọng Tấn (Sân trường)");
+    } else if (locationLower.contains('140')) {
+      print("    Đã chọn: 140 Lê Trọng Tấn");
+    } else {
+      print("    Mặc định: 140 Lê Trọng Tấn");
+    }
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
     bool serviceEnabled;
     LocationPermission permission;
 

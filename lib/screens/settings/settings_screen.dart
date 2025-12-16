@@ -7,7 +7,9 @@ import 'change_password_screen.dart';
 import 'barcode_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final bool hideAppBar;
+
+  const SettingsScreen({super.key, this.hideAppBar = false});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -116,26 +118,29 @@ class _SettingsScreenState extends State<SettingsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        elevation: 0.5,
-        automaticallyImplyLeading: false,
-        title: const Text(
-          'Cài đặt',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.qr_code_2, color: Color(0xFF2196F3)),
-            onPressed: _showBarcodeScreen,
-            tooltip: 'Tạo barcode',
-          ),
-        ],
-      ),
+      appBar: widget.hideAppBar
+          ? null
+          : AppBar(
+              backgroundColor: Colors.white,
+              elevation: 0.5,
+              automaticallyImplyLeading: false,
+              title: const Text(
+                'Cài đặt',
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              centerTitle: true,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.qr_code_2, color: Color(0xFF2196F3)),
+                  onPressed: _showBarcodeScreen,
+                  tooltip: 'Tạo barcode',
+                ),
+              ],
+            ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

@@ -493,7 +493,7 @@ class _EventListScreenState extends State<EventListScreen>
       );
 
       try {
-        await LocationService.checkLocation();
+        await LocationService.checkLocation(location: registration.location);
         if (!mounted) return;
         Navigator.pop(context); // Đóng dialog kiểm tra vị trí
       } catch (e) {
@@ -596,11 +596,15 @@ class _EventListScreenState extends State<EventListScreen>
                               size: 20,
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              'Khung giờ ${currentSchedule['index']}: ${currentSchedule['start']} - ${currentSchedule['end']}',
-                              style: TextStyle(
-                                color: Colors.green[900],
-                                fontWeight: FontWeight.w600,
+                            Flexible(
+                              child: Text(
+                                'Khung giờ ${currentSchedule['index']}: ${currentSchedule['start']} - ${currentSchedule['end']}',
+                                style: TextStyle(
+                                  color: Colors.green[900],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.visible,
+                                softWrap: true,
                               ),
                             ),
                           ],
@@ -681,7 +685,7 @@ class _EventListScreenState extends State<EventListScreen>
       );
 
       try {
-        await LocationService.checkLocation();
+        await LocationService.checkLocation(location: registration.location);
         if (!mounted) return;
         Navigator.pop(context); // Đóng dialog kiểm tra vị trí
       } catch (e) {
@@ -1290,18 +1294,6 @@ class _EventListScreenState extends State<EventListScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              EventDetailScreen(eventId: event.id),
-                        ),
-                      ).then((_) => _loadTabData(_tabController.index));
-                    },
-                    child: const Text('Chi tiết'),
-                  ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () => _registerEvent(event),

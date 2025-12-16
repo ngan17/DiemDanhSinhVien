@@ -142,7 +142,7 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
                                       MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      '${selectedSemesterScore!['totalScore'] ?? 0}',
+                                      '${selectedSemesterScore!['totalScore'] ?? 70}',
                                       style: const TextStyle(
                                         fontSize: 32,
                                         fontWeight: FontWeight.bold,
@@ -152,7 +152,7 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
                                     Text(
                                       _getScoreRating(
                                         selectedSemesterScore!['totalScore'] ??
-                                            0,
+                                            70,
                                       ),
                                       style: const TextStyle(
                                         fontSize: 18,
@@ -179,9 +179,24 @@ class _TrainingScoreScreenState extends State<TrainingScoreScreen> {
                           if (selectedSemesterScore!['events'] != null &&
                               (selectedSemesterScore!['events'] as List)
                                   .isNotEmpty)
-                            ...(selectedSemesterScore!['events'] as List).map((
-                              event,
-                            ) {
+                            ...(() {
+                            
+                              final events =
+                                  selectedSemesterScore!['events'] as List;
+                              final uniqueEvents = <String, dynamic>{};
+                              for (var event in events) {
+
+                                final registrationId = event['registrationId'];
+                                final key = registrationId != null
+                                    ? registrationId.toString()
+                                    : '${event['eventDetailId']}_${event['eventName']}_${event['session']}';
+
+                                if (!uniqueEvents.containsKey(key)) {
+                                  uniqueEvents[key] = event;
+                                }
+                              }
+                              return uniqueEvents.values.toList();
+                            })().map((event) {
                               return Container(
                                 width: double.infinity,
                                 margin: const EdgeInsets.symmetric(

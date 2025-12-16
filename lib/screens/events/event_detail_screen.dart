@@ -17,6 +17,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   bool _isLoading = true;
   // Thay đổi từ bool thành Set<int> để track từng session riêng biệt
   Set<int> _registeringSessions = {};
+  // Track các session đã đăng ký
+  Set<int> _registeredSessionIds = {};
 
   @override
   void initState() {
@@ -45,6 +47,24 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
       if (result['success'] == true) {
         final data = result['data'];
+
+        // Load danh sách session đã đăng ký
+        final myRegsResult = await EventService.getMyRegistrations();
+        if (myRegsResult['success'] == true) {
+          final List<dynamic> regsJson = myRegsResult['data'] ?? [];
+          _registeredSessionIds = regsJson
+              .map((json) => EventRegistrationModel.fromJson(json))
+              .where(
+                (r) =>
+                    r.eventId == widget.eventId &&
+                    (r.status == 'wait_confirm' ||
+                        r.status == 'confirmed' ||
+                        r.status == 'attended'),
+              )
+              .map((r) => r.eventDetailId)
+              .toSet();
+        }
+
         setState(() {
           _event = EventModel.fromJson(data['event']);
           final List<dynamic> sessionsJson = data['sessions'] ?? [];
@@ -414,11 +434,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
 
   Widget _buildSessionCard(EventSessionModel session) {
-    // Kiểm tra xem session này có đang được đăng ký không
     final isThisSessionRegistering = _registeringSessions.contains(session.id);
+    final isAlreadyRegistered = _registeredSessionIds.contains(session.id);
 
     return Card(
       elevation: 2,
+      color: Colors.white,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
@@ -545,20 +566,25 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                // Chỉ disable nút của session đang được đăng ký
-                onPressed: session.isFull || isThisSessionRegistering
+                // Disable nếu: đã đầy, đang đăng ký, hoặc đã đăng ký rồi
+                onPressed:
+                    session.isFull ||
+                        isThisSessionRegistering ||
+                        isAlreadyRegistered
                     ? null
                     : () => _registerSession(session),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: session.isFull
+                  backgroundColor: session.isFull || isAlreadyRegistered
                       ? Colors.grey
                       : const Color(0xFF1E90FF),
+                  disabledBackgroundColor: Colors.grey[300],
+                  disabledForegroundColor: Colors.grey[600],
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                // Chỉ hiển thị loading cho session đang được đăng ký
+
                 child: isThisSessionRegistering
                     ? const SizedBox(
                         height: 20,
@@ -569,7 +595,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         ),
                       )
                     : Text(
-                        session.isFull ? 'Đã đầy' : 'Đăng ký',
+                        isAlreadyRegistered
+                            ? 'Đã đăng ký'
+                            : (session.isFull ? 'Đã đầy' : 'Đăng ký'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
